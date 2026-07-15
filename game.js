@@ -408,7 +408,7 @@ const TOP_BAR_H = 116;
 const PAD = 10; // 左右各10px
 const BOARD_W = W - PAD*2; // 撑满宽
 const BOARD_H_RAW = Math.min(Math.round(BOARD_W * 16 / 9), H - TOP_BAR_H - 130) - 30;
-const BOARD_H = Math.round(BOARD_H_RAW * 0.95); // 上下各缩2.5%
+const BOARD_H = Math.round(BOARD_H_RAW * 0.90); // 上下各缩5%
 const BOARD_X = (W - BOARD_W) / 2;
 // 槽位 — 等比撑满棋盘宽
 const SLOT_ROW_PAD = 10;
