@@ -404,11 +404,11 @@ function useProp(type){if(type==='undo'){if(doUndo()){props.undo--;showToast('�
 
 // ═══════════════════ Canvas 渲染 — 1:1 CSS 翻译 ═══════════════════
 // ═══ 层叠布局：9:16板(自适应满宽20px边距) → 槽 → 道具 → 信息 ═══
-const TOP_BAR_H = 94;
+const TOP_BAR_H = 112;
 const PAD = 10; // 左右各10px
 const BOARD_W = W - PAD*2; // 撑满宽
 const BOARD_H_RAW = Math.min(Math.round(BOARD_W * 16 / 9), H - TOP_BAR_H - 130) - 30;
-const BOARD_H = Math.round(BOARD_H_RAW * 0.60); // 上下各缩20%
+const BOARD_H = Math.round(BOARD_H_RAW * 0.80); // 上下各缩10%
 const BOARD_X = (W - BOARD_W) / 2;
 // 槽位 — 等比撑满棋盘宽
 const SLOT_ROW_PAD = 10;
@@ -623,8 +623,8 @@ let loginCloseBB=null, loginBtnBB=null;
 let winShareBB=null, winLbBB=null, winNextBB=null, winReplayBB=null;
 let loseContinueBB=null, loseUndoBB=null;
 function drawUI(){
-  // ═══ 顶栏 2行 (94px: 上48px微信留白) ═══
-  const r1y=48, r1h=20, r2y=70, r2h=24;
+  // ═══ 顶栏 2行 (112px: 上48px留白, 行间距20px) ═══
+  const r1y=48, r1h=20, r2y=88, r2h=24;
   // 半透明底条
   ctx.fillStyle='rgba(10,12,30,0.6)';ctx.fillRect(0,0,W,TOP_BAR_H);
   // 底部分割线
