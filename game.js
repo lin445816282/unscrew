@@ -404,7 +404,7 @@ function useProp(type){if(type==='undo'){if(doUndo()){props.undo--;showToast('�
 
 // ═══════════════════ Canvas 渲染 — 1:1 CSS 翻译 ═══════════════════
 // ═══ 层叠布局：9:16板(自适应满宽20px边距) → 槽 → 道具 → 信息 ═══
-const TOP_BAR_H = 116;
+const TOP_BAR_H = 94;
 const PAD = 10; // 左右各10px
 const BOARD_W = W - PAD*2; // 撑满宽
 const BOARD_H_RAW = Math.min(Math.round(BOARD_W * 16 / 9), H - TOP_BAR_H - 130) - 30;
@@ -623,8 +623,8 @@ let loginCloseBB=null, loginBtnBB=null;
 let winShareBB=null, winLbBB=null, winNextBB=null, winReplayBB=null;
 let loseContinueBB=null, loseUndoBB=null;
 function drawUI(){
-  // ═══ 顶栏 2行 (110px: 上60px微信留白) ═══
-  const r1y=60, r1h=24, r2y=86, r2h=30;
+  // ═══ 顶栏 2行 (94px: 上48px微信留白) ═══
+  const r1y=48, r1h=20, r2y=70, r2h=24;
   // 半透明底条
   ctx.fillStyle='rgba(10,12,30,0.6)';ctx.fillRect(0,0,W,TOP_BAR_H);
   // 底部分割线
@@ -634,14 +634,14 @@ function drawUI(){
   // ── 行1: 关卡(左) + 🎵BGM/🎨皮肤/🔊音效/⏸暂停(右) ──
   topButtons=[];
   skinButtons=[];
-  const lvW=80, lvH=22, lvX=10, lvY=r1y+2;
+  const lvW=80, lvH=20, lvX=10, lvY=r1y;
   ctx.fillStyle='rgba(99,102,241,0.25)';ctx.beginPath();ctx.roundRect(lvX,lvY,lvW,lvH,11);ctx.fill();
   ctx.font='bold 13px sans-serif';ctx.fillStyle='#c7d2fe';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('第 '+level+' 关 ▼',lvX+lvW/2,lvY+lvH/2);
   topButtons.push({id:'level',x:lvX,y:lvY,w:lvW,h:lvH});
   // 右侧按钮组：bgm, skin, sound, pause
   const btnS=24, btnGap=4, pauseX=W-btnS-8, soundX=pauseX-btnS-btnGap;
   const skinX=soundX-btnS-btnGap, bgmX=skinX-btnS-btnGap;
-  const btnY2=r1y+1;
+  const btnY2=r1y;
   // 🎵 BGM
   ctx.fillStyle=bgmOn?'rgba(99,102,241,0.25)':'rgba(255,255,255,0.08)';ctx.beginPath();ctx.roundRect(bgmX,btnY2,btnS,btnS,8);ctx.fill();
   ctx.font='13px sans-serif';ctx.fillStyle=bgmOn?'#818cf8':'#94a3b8';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🎵',bgmX+btnS/2,btnY2+btnS/2);
@@ -659,7 +659,7 @@ function drawUI(){
   ctx.font='14px sans-serif';ctx.fillStyle=paused?'#fbbf24':'#94a3b8';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(paused?'▶':'⏸',pauseX+btnS/2,btnY2+btnS/2);
   topButtons.push({id:'pause',x:pauseX,y:btnY2,w:btnS,h:btnS});
   // ── 行1右额外：🏆排行 👤账号 ──
-  const ldBtX=W-btnS-8, ldBtY=r2y+1;
+  const ldBtX=W-btnS-8, ldBtY=r2y;
   ctx.fillStyle='rgba(255,255,255,0.08)';ctx.beginPath();ctx.roundRect(ldBtX-btnS-btnGap,ldBtY,btnS,btnS,8);ctx.fill();
   ctx.font='13px sans-serif';ctx.fillStyle='#94a3b8';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🏆',ldBtX-btnS-btnGap+btnS/2,ldBtY+btnS/2);
   topButtons.push({id:'leaderboard',x:ldBtX-btnS-btnGap,y:ldBtY,w:btnS,h:btnS});
@@ -670,7 +670,7 @@ function drawUI(){
   ctx.font='bold 15px sans-serif';ctx.textBaseline='middle';
   ctx.fillStyle='#fbbf24';ctx.textAlign='left';ctx.fillText('⭐ '+score, 10, r2y+r2h/2+1);
   // 🛒 商店按钮 — 3D立体
-  const shopW=62, shopH=28, shopX=10+52, shopY=r2y;
+  const shopW=62, shopH=22, shopX=10+52, shopY=r2y;
   ctx.save();ctx.shadowColor='rgba(6,182,212,0.35)';ctx.shadowBlur=8;ctx.shadowOffsetY=3;
   const sg=ctx.createLinearGradient(0,shopY,0,shopY+shopH);
   sg.addColorStop(0,'#22d3ee');sg.addColorStop(1,'#0e7490');
@@ -684,7 +684,7 @@ function drawUI(){
   ctx.fillText('🛒商店',shopX+shopW/2,shopY+shopH/2+1);
   topButtons.push({id:'shop',x:shopX,y:shopY,w:shopW,h:shopH});
   // 📅 每日挑战 — 3D立体
-  const dcW=62, dcH=28, dcX=shopX+shopW+10, dcY=r2y;
+  const dcW=62, dcH=22, dcX=shopX+shopW+10, dcY=r2y;
   ctx.save();ctx.shadowColor='rgba(239,68,68,0.35)';ctx.shadowBlur=8;ctx.shadowOffsetY=3;
   const dg=ctx.createLinearGradient(0,dcY,0,dcY+dcH);
   dg.addColorStop(0,'#f87171');dg.addColorStop(1,'#dc2626');
@@ -699,7 +699,7 @@ function drawUI(){
   topButtons.push({id:'daily',x:dcX,y:dcY,w:dcW,h:dcH});
   // 🎁 签到按钮 — 3D立体
   const today=getToday(), ckClaimed=ckData.lastDate===today;
-  const ckBtnW=72, ckBtnH=28, ckBtnX=dcX+dcW+10, ckBtnY=r2y;
+  const ckBtnW=72, ckBtnH=22, ckBtnX=dcX+dcW+10, ckBtnY=r2y;
   ctx.save();ctx.shadowColor=ckClaimed?'rgba(99,102,241,0.35)':'rgba(251,191,36,0.4)';ctx.shadowBlur=8;ctx.shadowOffsetY=3;
   const ckg=ctx.createLinearGradient(0,ckBtnY,0,ckBtnY+ckBtnH);
   if(ckClaimed){ckg.addColorStop(0,'#818cf8');ckg.addColorStop(1,'#4f46e5');}
