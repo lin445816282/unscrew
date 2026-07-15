@@ -405,6 +405,7 @@ function useProp(type){if(type==='undo'){if(doUndo()){props.undo--;showToast('�
 // ═══════════════════ Canvas 渲染 — 1:1 CSS 翻译 ═══════════════════
 // ═══ 层叠布局：9:16板(自适应满宽20px边距) → 槽 → 道具 → 信息 ═══
 const TOP_BAR_H = 116;
+const TOP_SHRINK = 20; // 上方向下收缩20px
 const PAD = 10; // 左右各10px
 const BOARD_W = W - PAD*2; // 撑满宽
 const BOARD_H_RAW = Math.min(Math.round(BOARD_W * 16 / 9), H - TOP_BAR_H - 130) - 30;
@@ -423,7 +424,7 @@ const BOTTOM_H = PROP_BTN + PROP_LABEL + 16;
 // 总内容：板子 + 间距 + 槽 + 间距 + 底部
 const GAP = 8;
 const contentH = BOARD_H + GAP + SLOT_ROW_H + GAP + BOTTOM_H;
-const BOARD_Y = TOP_BAR_H + Math.max(0, Math.floor((H - TOP_BAR_H - contentH) / 2));
+const BOARD_Y = TOP_BAR_H + TOP_SHRINK + Math.max(0, Math.floor((H - TOP_BAR_H - TOP_SHRINK - contentH) / 2));
 const SLOT_BAR_Y = BOARD_Y + BOARD_H + GAP;
 const PROPS_Y = SLOT_BAR_Y + SLOT_ROW_H + GAP;
 
