@@ -34,7 +34,9 @@ if (!ctx.ellipse) {
 }
 const sysInfo = wx.getSystemInfoSync();
 const W = sysInfo.windowWidth, H = sysInfo.windowHeight;
-canvas.width = W; canvas.height = H;
+const DPR = Math.min(sysInfo.pixelRatio || 1, 2); // 最高2x防性能问题
+canvas.width = W * DPR; canvas.height = H * DPR;
+ctx.scale(DPR, DPR);
 // ── 颜色（完整：face + pattern 从 web 版 1:1） ──
 const COLORS = [
   { name:'白', hex:'#e8e8e0', light:'#ffffff', face:'bunny', pattern:'crosshatch' },
@@ -271,7 +273,7 @@ function skipTutorial(){showTutorialOverlay=false;tutDone=true;try{wx.setStorage
 let showShareOverlay=false;
 function generateShareCard(){showShareOverlay=true;showToast('📤 用微信分享给好友')}
 // ── 排行榜 ──
-let showLB=false, lbData=[], lbPeriod='all';
+let showLB=false, lbData=[], lbPeriod='all', _fromWinOverlay=false;
 function loadLB(){try{lbData=JSON.parse(wx.getStorageSync('lb')||'[]')}catch(e){lbData=[]}}
 function submitLB(){var today=getToday();var entry={nick:nickname||'萌糖玩家',score:score,level:level,date:today};lbData.push(entry);lbData.sort((a,b)=>b.score-a.score);if(lbData.length>50)lbData=lbData.slice(0,50);wx.setStorageSync('lb',JSON.stringify(lbData))}
 // ── 本地登录/昵称 ──
@@ -287,8 +289,15 @@ function showWxLoginBtn(){
           backgroundColor:'#07c160',color:'#ffffff',textAlign:'center',fontSize:15,borderRadius:21}});
       userInfoBtn.onTap(res=>{
         console.log('[login] onTap:',JSON.stringify(res));
-        if(res.errMsg.indexOf(':ok')>-1&&res.rawData){
-          try{const u=JSON.parse(res.rawData);setNick(u.nickName||'微信用户',u.avatarUrl||'');showToast('欢迎 '+nickname)}catch(e){}
+        if(res.errMsg.indexOf(':ok')>-1){
+          // 新版优先 rawData，旧版 fallback 用 getUserInfo
+          if(res.rawData){
+            try{const u=JSON.parse(res.rawData);setNick(u.nickName||'微信用户',u.avatarUrl||'');showToast('欢迎 '+nickname)}catch(e){}
+          }else if(res.userInfo){
+            setNick(res.userInfo.nickName||'微信用户',res.userInfo.avatarUrl||'');showToast('欢迎 '+nickname);
+          }else{
+            wx.getUserInfo({success:r=>{const u=r.userInfo;setNick(u.nickName||'微信用户',u.avatarUrl||'');showToast('欢迎 '+nickname)},fail:()=>{showToast('登录失败，请重试')}});
+          }
         }
         showLoginOverlay=false;hideWxLoginBtn()
       });
@@ -1217,7 +1226,7 @@ function handleTouch(tx,ty){
   }
   // ── 排行榜 ──
   if(showLB){
-    if(lbCloseBB&&tx>=lbCloseBB.x&&tx<=lbCloseBB.x+lbCloseBB.w&&ty>=lbCloseBB.y&&ty<=lbCloseBB.y+lbCloseBB.h){showLB=false;return}
+    if(lbCloseBB&&tx>=lbCloseBB.x&&tx<=lbCloseBB.x+lbCloseBB.w&&ty>=lbCloseBB.y&&ty<=lbCloseBB.y+lbCloseBB.h){showLB=false;if(_fromWinOverlay){_fromWinOverlay=false;showWinOverlay=true}return}
     for(const b of lbTabBB){if(tx>=b.x&&tx<=b.x+b.w&&ty>=b.y&&ty<=b.y+b.h){lbPeriod=b.period;showLB=true;return}}
     return;
   }
@@ -1245,7 +1254,7 @@ function handleTouch(tx,ty){
     if(winNextBB&&tx>=winNextBB.x&&tx<=winNextBB.x+winNextBB.w&&ty>=winNextBB.y&&ty<=winNextBB.y+winNextBB.h){level++;saveGame();showWinOverlay=false;generateLevel();return}
     if(winReplayBB&&tx>=winReplayBB.x&&tx<=winReplayBB.x+winReplayBB.w&&ty>=winReplayBB.y&&ty<=winReplayBB.y+winReplayBB.h){showWinOverlay=false;restartLevel();return}
     if(winShareBB&&tx>=winShareBB.x&&tx<=winShareBB.x+winShareBB.w&&ty>=winShareBB.y&&ty<=winShareBB.y+winShareBB.h){showWinOverlay=false;generateShareCard();return}
-    if(winLbBB&&tx>=winLbBB.x&&tx<=winLbBB.x+winLbBB.w&&ty>=winLbBB.y&&ty<=winLbBB.y+winLbBB.h){showWinOverlay=false;loadLB();showLB=true;return}
+    if(winLbBB&&tx>=winLbBB.x&&tx<=winLbBB.x+winLbBB.w&&ty>=winLbBB.y&&ty<=winLbBB.y+winLbBB.h){showWinOverlay=false;_fromWinOverlay=true;loadLB();showLB=true;return}
     return; // 遮罩拦截其余点击
   }
   if(showLoseOverlay){
