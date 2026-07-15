@@ -404,7 +404,7 @@ function useProp(type){if(type==='undo'){if(doUndo()){props.undo--;showToast('�
 
 // ═══════════════════ Canvas 渲染 — 1:1 CSS 翻译 ═══════════════════
 // ═══ 层叠布局：9:16板(自适应满宽20px边距) → 槽 → 道具 → 信息 ═══
-const TOP_BAR_H = 112;
+const TOP_BAR_H = 102;
 const PAD = 10; // 左右各10px
 const BOARD_W = W - PAD*2; // 撑满宽
 const BOARD_H_RAW = Math.min(Math.round(BOARD_W * 16 / 9), H - TOP_BAR_H - 130) - 30;
@@ -623,103 +623,124 @@ let loginCloseBB=null, loginBtnBB=null;
 let winShareBB=null, winLbBB=null, winNextBB=null, winReplayBB=null;
 let loseContinueBB=null, loseUndoBB=null;
 function drawUI(){
-  // ═══ 顶栏 2行 (112px: 上48px留白, 行间距20px) ═══
-  const r1y=48, r1h=20, r2y=88, r2h=24;
-  // 半透明底条
-  ctx.fillStyle='rgba(10,12,30,0.6)';ctx.fillRect(0,0,W,TOP_BAR_H);
-  // 底部分割线
+  // ═══ 顶栏 2行 (102px: 上48px留白, 行间距6px, 右侧SAFE避微信"…") ═══
+  const r1y=48, r1h=22, r2y=76, r2h=26;
+  const SAFE_R = W - 50; // 微信"…"按钮安全区
+  
+  // 毛玻璃底条
+  const tbg = ctx.createLinearGradient(0,0,0,TOP_BAR_H);
+  tbg.addColorStop(0,'rgba(10,12,30,0.78)');
+  tbg.addColorStop(0.5,'rgba(10,12,30,0.62)');
+  tbg.addColorStop(1,'rgba(10,12,30,0.35)');
+  ctx.fillStyle=tbg;ctx.fillRect(0,0,W,TOP_BAR_H);
   ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,TOP_BAR_H);ctx.lineTo(W,TOP_BAR_H);ctx.stroke();
-  // 行间分割线
-  ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.beginPath();ctx.moveTo(0,r2y);ctx.lineTo(W,r2y);ctx.stroke();
-  // ── 行1: 关卡(左) + 🎵BGM/🎨皮肤/🔊音效/⏸暂停(右) ──
+  
   topButtons=[];
   skinButtons=[];
-  const lvW=80, lvH=20, lvX=10, lvY=r1y;
-  ctx.fillStyle='rgba(99,102,241,0.25)';ctx.beginPath();ctx.roundRect(lvX,lvY,lvW,lvH,11);ctx.fill();
-  ctx.font='bold 13px sans-serif';ctx.fillStyle='#c7d2fe';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('第 '+level+' 关 ▼',lvX+lvW/2,lvY+lvH/2);
+  ckButton=null;
+  
+  // ── 行1: 关卡(左) + 🔊音效 ⏸暂停(右, 避开微信) ──
+  const lvW=78, lvH=22, lvX=12, lvY=r1y;
+  ctx.fillStyle='rgba(99,102,241,0.18)';ctx.beginPath();ctx.roundRect(lvX,lvY,lvW,lvH,11);ctx.fill();
+  ctx.font='bold 12px sans-serif';ctx.fillStyle='#a5b4fc';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('第'+level+'关 ▼',lvX+lvW/2,lvY+lvH/2);
   topButtons.push({id:'level',x:lvX,y:lvY,w:lvW,h:lvH});
-  // 右侧按钮组：bgm, skin, sound, pause
-  const btnS=24, btnGap=4, pauseX=W-btnS-8, soundX=pauseX-btnS-btnGap;
-  const skinX=soundX-btnS-btnGap, bgmX=skinX-btnS-btnGap;
-  const btnY2=r1y;
-  // 🎵 BGM
-  ctx.fillStyle=bgmOn?'rgba(99,102,241,0.25)':'rgba(255,255,255,0.08)';ctx.beginPath();ctx.roundRect(bgmX,btnY2,btnS,btnS,8);ctx.fill();
-  ctx.font='13px sans-serif';ctx.fillStyle=bgmOn?'#818cf8':'#94a3b8';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🎵',bgmX+btnS/2,btnY2+btnS/2);
-  topButtons.push({id:'bgm',x:bgmX,y:btnY2,w:btnS,h:btnS});
-  // 🎨 皮肤
-  ctx.fillStyle=showSkinPicker?'rgba(251,191,36,0.2)':'rgba(255,255,255,0.08)';ctx.beginPath();ctx.roundRect(skinX,btnY2,btnS,btnS,8);ctx.fill();
-  ctx.font='13px sans-serif';ctx.fillStyle=showSkinPicker?'#fbbf24':'#94a3b8';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🎨',skinX+btnS/2,btnY2+btnS/2);
-  topButtons.push({id:'skin',x:skinX,y:btnY2,w:btnS,h:btnS});
+  
+  // 右侧: pause + sound (从SAFE_R向左排)  
+  const btnS=22, btnGap=6;
+  const pauseX=SAFE_R-btnS, soundX=pauseX-btnS-btnGap;
+  const btnY=r1y;
+  
   // 🔊/🔇 音效
-  ctx.fillStyle=soundOn?'rgba(255,255,255,0.08)':'rgba(255,80,80,0.15)';ctx.beginPath();ctx.roundRect(soundX,btnY2,btnS,btnS,8);ctx.fill();
-  ctx.font='14px sans-serif';ctx.fillStyle=soundOn?'#94a3b8':'#ef4444';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(soundOn?'🔊':'🔇',soundX+btnS/2,btnY2+btnS/2);
-  topButtons.push({id:'sound',x:soundX,y:btnY2,w:btnS,h:btnS});
+  ctx.fillStyle=soundOn?'rgba(255,255,255,0.08)':'rgba(255,80,80,0.12)';
+  ctx.beginPath();ctx.roundRect(soundX,btnY,btnS,btnS,8);ctx.fill();
+  ctx.font='12px sans-serif';ctx.fillStyle=soundOn?'#94a3b8':'#ef4444';
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(soundOn?'🔊':'🔇',soundX+btnS/2,btnY+btnS/2);
+  topButtons.push({id:'sound',x:soundX,y:btnY,w:btnS,h:btnS});
+  
   // ⏸/▶ 暂停
-  ctx.fillStyle=paused?'rgba(251,191,36,0.2)':'rgba(255,255,255,0.08)';ctx.beginPath();ctx.roundRect(pauseX,btnY2,btnS,btnS,8);ctx.fill();
-  ctx.font='14px sans-serif';ctx.fillStyle=paused?'#fbbf24':'#94a3b8';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(paused?'▶':'⏸',pauseX+btnS/2,btnY2+btnS/2);
-  topButtons.push({id:'pause',x:pauseX,y:btnY2,w:btnS,h:btnS});
-  // ── 行1右额外：🏆排行 👤账号 ──
-  const ldBtX=W-btnS-8, ldBtY=r2y;
-  ctx.fillStyle='rgba(255,255,255,0.08)';ctx.beginPath();ctx.roundRect(ldBtX-btnS-btnGap,ldBtY,btnS,btnS,8);ctx.fill();
-  ctx.font='13px sans-serif';ctx.fillStyle='#94a3b8';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🏆',ldBtX-btnS-btnGap+btnS/2,ldBtY+btnS/2);
-  topButtons.push({id:'leaderboard',x:ldBtX-btnS-btnGap,y:ldBtY,w:btnS,h:btnS});
-  ctx.fillStyle=nickname?'rgba(7,193,96,0.25)':'rgba(255,255,255,0.08)';ctx.beginPath();ctx.roundRect(ldBtX,ldBtY,btnS,btnS,8);ctx.fill();
-  ctx.font='13px sans-serif';ctx.fillStyle=nickname?'#07c160':'#94a3b8';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(nickname?'✓':'👤',ldBtX+btnS/2,ldBtY+btnS/2);
-  topButtons.push({id:'user',x:ldBtX,y:ldBtY,w:btnS,h:btnS});
-  // ── 行2: ⭐分数(左) + 🛒商店 + 📅每日 + 🎁签到 + 🪙金币(右) ──
-  ctx.font='bold 15px sans-serif';ctx.textBaseline='middle';
-  ctx.fillStyle='#fbbf24';ctx.textAlign='left';ctx.fillText('⭐ '+score, 10, r2y+r2h/2+1);
-  // 🛒 商店按钮 — 3D立体
-  const shopW=62, shopH=22, shopX=10+52, shopY=r2y;
-  ctx.save();ctx.shadowColor='rgba(6,182,212,0.35)';ctx.shadowBlur=8;ctx.shadowOffsetY=3;
-  const sg=ctx.createLinearGradient(0,shopY,0,shopY+shopH);
-  sg.addColorStop(0,'#22d3ee');sg.addColorStop(1,'#0e7490');
-  ctx.fillStyle=sg;ctx.beginPath();ctx.roundRect(shopX,shopY,shopW,shopH,14);ctx.fill();ctx.restore();
-  ctx.save();ctx.beginPath();ctx.roundRect(shopX,shopY,shopW,shopH,14);ctx.clip();
-  ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(shopX+0.5,shopY+0.5,shopW-1,shopH-1,13.5);ctx.stroke();
-  const sh=ctx.createLinearGradient(0,shopY,0,shopY+shopH*0.45);
-  sh.addColorStop(0,'rgba(255,255,255,0.30)');sh.addColorStop(1,'transparent');
-  ctx.fillStyle=sh;ctx.beginPath();ctx.roundRect(shopX+1,shopY+1,shopW-2,shopH*0.45,13);ctx.fill();ctx.restore();
-  ctx.font='bold 13px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText('🛒商店',shopX+shopW/2,shopY+shopH/2+1);
-  topButtons.push({id:'shop',x:shopX,y:shopY,w:shopW,h:shopH});
-  // 📅 每日挑战 — 3D立体
-  const dcW=62, dcH=22, dcX=shopX+shopW+10, dcY=r2y;
-  ctx.save();ctx.shadowColor='rgba(239,68,68,0.35)';ctx.shadowBlur=8;ctx.shadowOffsetY=3;
-  const dg=ctx.createLinearGradient(0,dcY,0,dcY+dcH);
-  dg.addColorStop(0,'#f87171');dg.addColorStop(1,'#dc2626');
-  ctx.fillStyle=dg;ctx.beginPath();ctx.roundRect(dcX,dcY,dcW,dcH,14);ctx.fill();ctx.restore();
-  ctx.save();ctx.beginPath();ctx.roundRect(dcX,dcY,dcW,dcH,14);ctx.clip();
-  ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(dcX+0.5,dcY+0.5,dcW-1,dcH-1,13.5);ctx.stroke();
-  const dh=ctx.createLinearGradient(0,dcY,0,dcY+dcH*0.45);
-  dh.addColorStop(0,'rgba(255,255,255,0.30)');dh.addColorStop(1,'transparent');
-  ctx.fillStyle=dh;ctx.beginPath();ctx.roundRect(dcX+1,dcY+1,dcW-2,dcH*0.45,13);ctx.fill();ctx.restore();
-  ctx.font='bold 13px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText('📅每日',dcX+dcW/2,dcY+dcH/2+1);
-  topButtons.push({id:'daily',x:dcX,y:dcY,w:dcW,h:dcH});
-  // 🎁 签到按钮 — 3D立体
+  ctx.fillStyle=paused?'rgba(251,191,36,0.18)':'rgba(255,255,255,0.08)';
+  ctx.beginPath();ctx.roundRect(pauseX,btnY,btnS,btnS,8);ctx.fill();
+  ctx.font='12px sans-serif';ctx.fillStyle=paused?'#fbbf24':'#94a3b8';
+  ctx.fillText(paused?'▶':'⏸',pauseX+btnS/2,btnY+btnS/2);
+  topButtons.push({id:'pause',x:pauseX,y:btnY,w:btnS,h:btnS});
+  
+  // ── 行2: ⭐分数 + 居中三大按钮 + 🪙金币 ──
+  const scoreW=72, coinsW=64;
+  // ⭐分数
+  ctx.font='bold 14px sans-serif';ctx.textBaseline='middle';
+  ctx.fillStyle='#fbbf24';ctx.textAlign='left';ctx.fillText('⭐ '+score, 12, r2y+13);
+  
+  // 🪙金币 (避开SAFE_R)
+  ctx.font='bold 13px sans-serif';ctx.fillStyle='#fcd34d';ctx.textAlign='right';
+  ctx.fillText('🪙 '+coins, SAFE_R-4, r2y+13);
+  
+  // 三大按钮均分中间区域
+  const midX=12+scoreW+6, midW=(SAFE_R-6-coinsW-4)-midX;
+  const btnH=24, btnGap2=8;
+  const labels=[
+    {t:'🛒商店',id:'shop',cs:['#22d3ee','#0e7490']},
+    {t:'📅每日',id:'daily',cs:['#f87171','#dc2626']},
+    {t:'🎁签到',id:'checkin',cs:['#fbbf24','#d97706']}
+  ];
+  const eachW=Math.floor((midW-btnGap2*(labels.length-1))/labels.length);
   const today=getToday(), ckClaimed=ckData.lastDate===today;
-  const ckBtnW=72, ckBtnH=22, ckBtnX=dcX+dcW+10, ckBtnY=r2y;
-  ctx.save();ctx.shadowColor=ckClaimed?'rgba(99,102,241,0.35)':'rgba(251,191,36,0.4)';ctx.shadowBlur=8;ctx.shadowOffsetY=3;
-  const ckg=ctx.createLinearGradient(0,ckBtnY,0,ckBtnY+ckBtnH);
-  if(ckClaimed){ckg.addColorStop(0,'#818cf8');ckg.addColorStop(1,'#4f46e5');}
-  else{ckg.addColorStop(0,'#fbbf24');ckg.addColorStop(1,'#d97706');}
-  ctx.fillStyle=ckg;ctx.beginPath();ctx.roundRect(ckBtnX,ckBtnY,ckBtnW,ckBtnH,14);ctx.fill();ctx.restore();
-  ctx.save();ctx.beginPath();ctx.roundRect(ckBtnX,ckBtnY,ckBtnW,ckBtnH,14);ctx.clip();
-  ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(ckBtnX+0.5,ckBtnY+0.5,ckBtnW-1,ckBtnH-1,13.5);ctx.stroke();
-  const ckh=ctx.createLinearGradient(0,ckBtnY,0,ckBtnY+ckBtnH*0.45);
-  ckh.addColorStop(0,'rgba(255,255,255,0.30)');ckh.addColorStop(1,'transparent');
-  ctx.fillStyle=ckh;ctx.beginPath();ctx.roundRect(ckBtnX+1,ckBtnY+1,ckBtnW-2,ckBtnH*0.45,13);ctx.fill();ctx.restore();
-  ctx.font='bold 13px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText((ckClaimed?'✅':'🎁')+' 签到',ckBtnX+ckBtnW/2,ckBtnY+ckBtnH/2+1);
-  ckButton={id:'checkin',x:ckBtnX,y:ckBtnY,w:ckBtnW,h:ckBtnH};
-  ctx.textAlign='right';ctx.fillText('🪙 '+coins, W-10, r2y+r2h/2);
+  
+  labels.forEach((lb,i)=>{
+    const bx=midX+i*(eachW+btnGap2), by=r2y+1;
+    let cs=lb.cs;
+    if(lb.id==='checkin' && ckClaimed) cs=['#818cf8','#4f46e5'];
+    
+    ctx.save();
+    ctx.shadowColor='rgba(0,0,0,0.2)';ctx.shadowBlur=6;ctx.shadowOffsetY=2;
+    const bg=ctx.createLinearGradient(0,by,0,by+btnH);
+    bg.addColorStop(0,cs[0]);bg.addColorStop(1,cs[1]);
+    ctx.fillStyle=bg;ctx.beginPath();ctx.roundRect(bx,by,eachW,btnH,12);ctx.fill();
+    ctx.restore();
+    
+    ctx.save();ctx.beginPath();ctx.roundRect(bx,by,eachW,btnH,12);ctx.clip();
+    ctx.strokeStyle='rgba(255,255,255,0.18)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.roundRect(bx+0.5,by+0.5,eachW-1,btnH-1,11.5);ctx.stroke();
+    const hl=ctx.createLinearGradient(0,by,0,by+btnH*0.4);
+    hl.addColorStop(0,'rgba(255,255,255,0.28)');hl.addColorStop(1,'transparent');
+    ctx.fillStyle=hl;ctx.beginPath();ctx.roundRect(bx+1,by+1,eachW-2,btnH*0.4,11);ctx.fill();
+    ctx.restore();
+    
+    ctx.font='bold 12px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(lb.id==='checkin'&&ckClaimed?'✅ 已签':lb.t,bx+eachW/2,by+btnH/2+1);
+    topButtons.push({id:lb.id,x:bx,y:by,w:eachW,h:btnH});
+    if(lb.id==='checkin') ckButton={id:'checkin',x:bx,y:by,w:eachW,h:btnH};
+  });
+  
+  // ── 面板下方：低频图标 ──
+  const iconY=PROPS_Y+PROP_BTN+PROP_LABEL+6;
+  const iconS=18, iconGap=8;
+  const icons=[
+    {e:bgmOn?'🎵':'🎶',id:'bgm',active:bgmOn},
+    {e:'🎨',id:'skin',active:showSkinPicker},
+    {e:'🏆',id:'leaderboard',active:showLB},
+    {e:nickname?'✓':'👤',id:'user',active:!!nickname}
+  ];
+  const iconTotalW=icons.length*iconS+(icons.length-1)*iconGap;
+  const iconStartX=W-12-iconTotalW;
+  icons.forEach((ic,i)=>{
+    const ix=iconStartX+i*(iconS+iconGap), iy=iconY;
+    ctx.fillStyle=ic.active?'rgba(255,255,255,0.06)':'rgba(255,255,255,0.03)';
+    ctx.beginPath();ctx.roundRect(ix,iy,iconS,iconS,5);ctx.fill();
+    ctx.font='10px sans-serif';ctx.fillStyle=ic.active?'#94a3b8':'#64748b';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(ic.e,ix+iconS/2,iy+iconS/2);
+    topButtons.push({id:ic.id,x:ix,y:iy,w:iconS,h:iconS});
+  });
+  
   // 底部信息
   const remain=screws.filter(s=>!s.removed).length;
-  const infoY=PROPS_Y+PROP_BTN+PROP_LABEL+8;
-  ctx.font='11px sans-serif';ctx.textAlign='left';ctx.fillStyle='#64748b';ctx.fillText('剩余 '+remain+'/'+totalScrewCount,12,infoY);
+  const infoY=iconY+iconS+4;
+  ctx.font='11px sans-serif';ctx.textAlign='left';ctx.fillStyle='#64748b';
+  ctx.fillText('剩余 '+remain+'/'+totalScrewCount,12,infoY+8);
   ctx.textAlign='right';
-  if(combo>1){ctx.fillStyle='#fbbf24';ctx.fillText('连击 ×'+combo,W-12,infoY)}
+  if(combo>1){ctx.fillStyle='#fbbf24';ctx.fillText('连击 ×'+combo,W-12,infoY+8)}
   // Toast
   if(toastMsg){
     const tw=ctx.measureText(toastMsg).width+30;
