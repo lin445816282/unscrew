@@ -1,0 +1,4 @@
+# 微信小游戏 - 萌糖消了个消
+*.bak
+*_test.js
+project.private.config.json
