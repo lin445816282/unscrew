@@ -339,9 +339,11 @@ function logoutUser(){nickname='';avatarUrl='';setNick('','');showToast('已退�
 function showWxLoginBtn(){
   if(!userInfoBtn){
     try{
+      // 面板 mh=260，居中 → my=(H-260)/2
+      const btnW=160,btnH=44,btnTop=(H-260)/2+95;
       userInfoBtn=wx.createUserInfoButton({type:'text',text:'微信一键登录',
-        style:{left:W/2-70,top:H/2+65,width:140,height:42,lineHeight:42,
-          backgroundColor:'#07c160',color:'#ffffff',textAlign:'center',fontSize:15,borderRadius:21}});
+        style:{left:(W-btnW)/2,top:btnTop,width:btnW,height:btnH,lineHeight:btnH,
+          backgroundColor:'#07c160',color:'#ffffff',textAlign:'center',fontSize:16,borderRadius:btnH/2}});
       userInfoBtn.onTap(res=>{
         console.log('[login] onTap:',JSON.stringify(res));
         if(res.errMsg.indexOf(':ok')>-1){
@@ -1282,9 +1284,20 @@ function drawOverlays(){
       }
       privacyAgreeBB={x:btnX,y:btnY,w:btnW,h:btnH};
     }else{
-      _s();ctx.font='12px sans-serif';ctx.fillStyle='#94a3b8';ctx.textAlign='center';ctx.fillText('点击下方绿色按钮登录',W/2,my+65);
-      ctx.font='11px sans-serif';ctx.fillStyle='#64748b';ctx.fillText('登录后同步排行榜数据',W/2,my+85);_r();
-      // 绿色按钮由 showWxLoginBtn() 原生创建，不在此绘制
+      // 已同意隐私 → 显示原生微信登录按钮
+      _s();ctx.textAlign='center';
+      ctx.font='13px sans-serif';ctx.fillStyle='#e2e8f0';ctx.textBaseline='alphabetic';
+      ctx.fillText('点击下方按钮一键登录',W/2,my+58);
+      ctx.font='11px sans-serif';ctx.fillStyle='#64748b';
+      ctx.fillText('登录后同步排行榜数据',W/2,my+78);
+      _r();
+      // 原生按钮由 showWxLoginBtn() 定位在 my+95
+      // 再下面画一个装饰分隔
+      ctx.fillStyle='rgba(255,255,255,0.04)';ctx.beginPath();
+      ctx.roundRect(mx+20,my+155,mw-40,1,0.5);ctx.fill();
+      // 提示无需登录也能玩
+      _s();ctx.font='10px sans-serif';ctx.fillStyle='#475569';ctx.textAlign='center';
+      ctx.fillText('也可直接关闭，无需登录即可畅玩',W/2,my+175);_r();
     }
     loginCloseBB=_drawClose(mx+mw-32,my);
     // 原生按钮在此创建（不在触控事件中，避免事件干扰）
