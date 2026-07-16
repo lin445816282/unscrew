@@ -1353,7 +1353,7 @@ function handleTouch(tx,ty){
   // 隐私协议全文
   if(showPrivacyText){
     if(privacyTextCloseBB&&tx>=privacyTextCloseBB.x&&tx<=privacyTextCloseBB.x+privacyTextCloseBB.w&&ty>=privacyTextCloseBB.y&&ty<=privacyTextCloseBB.y+privacyTextCloseBB.h){showPrivacyText='';return}
-    showPrivacyText='';return;
+    return;
   }
   if(showLoginOverlay){
     // 隐私协议UI
