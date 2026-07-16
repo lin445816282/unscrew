@@ -1226,7 +1226,7 @@ function drawOverlays(){
   }
   // 登录/昵称
   if(showLoginOverlay){
-    const mw=280,mh=240,mx=(W-mw)/2,my=(H-mh)/2;
+    const mw=280,mh=260,mx=(W-mw)/2,my=(H-mh)/2;
     _drawPanel(mx,my,mw,mh,18);
     _s();ctx.font='bold 18px sans-serif';ctx.fillStyle='#c7d2fe';ctx.textAlign='center';ctx.fillText('👤 '+(nickname?nickname:'登录账号'),W/2,my+32);_r();
     if(nickname){
@@ -1240,7 +1240,7 @@ function drawOverlays(){
       loginBtnBB={id:'logout',x:logoutX,y:logoutY,w:logoutW,h:logoutH};
     }else if(!privacyAgreed){
       // 隐私协议勾选
-      const chY=my+60,chSize=16;
+      const chY=my+55,chSize=16;
       const checkboxX=mx+30,checkboxY=chY;
       // 勾选框
       _s();ctx.textBaseline='middle';
@@ -1249,21 +1249,24 @@ function drawOverlays(){
       if(privacyCheckOn){ctx.fillStyle='#fff';ctx.font='12px sans-serif';ctx.fillText('✓',checkboxX+3,checkboxY+chSize/2+1)}
       ctx.font='11px sans-serif';ctx.fillStyle='#94a3b8';
       const txtX=checkboxX+chSize+6;
+      // 第一行：我已阅读并同意 + 《用户服务协议》和
       ctx.fillText('我已阅读并同意',txtX,checkboxY+chSize/2+1);
       const m1=ctx.measureText('我已阅读并同意');
-      // 可点击链接
       ctx.fillStyle='#6366f1';
       ctx.fillText('《用户服务协议》',txtX+m1.width,checkboxY+chSize/2+1);
       const m2=ctx.measureText('《用户服务协议》');
-      ctx.fillText('和',txtX+m1.width+m2.width,checkboxY+chSize/2+1);
-      const m3=ctx.measureText('和');
-      ctx.fillText('《隐私政策》',txtX+m1.width+m2.width+m3.width,checkboxY+chSize/2+1);
+      ctx.fillStyle='#94a3b8';ctx.fillText('和',txtX+m1.width+m2.width,checkboxY+chSize/2+1);
+      // 第二行：《隐私政策》
+      const line2Y=checkboxY+chSize/2+1+16;
+      ctx.fillStyle='#6366f1';ctx.textAlign='left';
+      ctx.fillText('《隐私政策》',txtX,line2Y);
+      const mpBB=ctx.measureText('《隐私政策》');
       _r();
       privacyCB={x:checkboxX,y:checkboxY,w:chSize,h:chSize};
       privacyUserBB={x:txtX+m1.width,y:checkboxY,w:m2.width,h:chSize};
-      privacyPolicyBB={x:txtX+m1.width+m2.width+m3.width,y:checkboxY,w:ctx.measureText('《隐私政策》').width,h:chSize};
+      privacyPolicyBB={x:txtX,y:line2Y-8,w:mpBB.width,h:chSize};
       // 确认按钮(勾选后才亮)
-      const btnW=180,btnH=36,btnX=W/2-btnW/2,btnY=my+100;
+      const btnW=180,btnH=36,btnX=W/2-btnW/2,btnY=my+108;
       if(privacyCheckOn){
         const ng=ctx.createLinearGradient(0,btnY,0,btnY+btnH);
         ng.addColorStop(0,'#6366f1');ng.addColorStop(1,'#06b6d4');
