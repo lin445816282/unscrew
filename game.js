@@ -225,7 +225,7 @@ let ckData={streak:0,lastDate:''}, showCheckin=false;
 // ── 背景音乐 ──
 let bgmOn=false, bgmInterval=null, bgmNoteIdx=0;
 function saveGame(){try{wx.setStorageSync('u_lv',level);wx.setStorageSync('u_sc',score);wx.setStorageSync('u_co',coins);wx.setStorageSync('u_pr',props)}catch(e){}}
-function loadGame(){try{level=wx.getStorageSync('u_lv')||1;score=wx.getStorageSync('u_sc')||0;coins=wx.getStorageSync('u_co')||30;const p=wx.getStorageSync('u_pr');if(p)props=p}catch(e){}}
+function loadGame(){try{level=wx.getStorageSync('u_lv')||1;score=wx.getStorageSync('u_sc')||0;coins=wx.getStorageSync('u_co')||30;const p=wx.getStorageSync('u_pr');if(p){for(const k in p){if(p[k]<0)p[k]=0}props=p}}catch(e){}}
 // ── 主题 ──
 function loadSkin(){try{activeSkin=wx.getStorageSync('skin')||'default'}catch(e){}}
 function setSkin(sid){activeSkin=sid;try{wx.setStorageSync('skin',sid)}catch(e){};showSkinPicker=false}
@@ -365,7 +365,7 @@ function isSolvable(){
 // ── 游戏逻辑 ──
 let _clickLock=0;
 function processClick(screw){if(processing||paused||!screw||screw.blocked||screw.removed)return;const now=Date.now();if(now-_clickLock<80)return;_clickLock=now;processing=true;history.push({screwId:screw.id,slots:slots.map(s=>s?{id:s.id,color:s.color}:null),score,combo});dyingScrews.push({id:screw.id,x:screw.x,y:screw.y,size:screw.size,color:screw.color,life:1});screw.removed=true;starMoves++;slots.push({id:screw.id,color:screw.color});const slotIdx=slots.length-1;slotAnims.push({idx:slotIdx,type:'popIn',startTime:Date.now(),duration:250,color:screw.color.hex});sfxClick();updateBlocked(screw.id);checkMatches()}
-function checkMatches(){const count={};slots.forEach((s,i)=>{if(!s)return;const k=s.color.name;if(!count[k])count[k]=[];count[k].push(i)});let mi=null;for(const cn in count){if(count[cn].length>=MATCH_COUNT){mi=count[cn].slice(0,MATCH_COUNT);break}}if(mi){processing=true;if(comboTimer)clearTimeout(comboTimer);combo++;const bonus=combo>1?combo*5:0;score+=30+bonus;sfxMatch();const cx=BOARD_X+BOARD_W/2,cy=BOARD_Y+BOARD_H*0.55;spawnParticles(cx,cy,slots[mi[0]].color.hex);const now2=Date.now();mi.forEach(idx=>slotAnims.push({idx,type:'glow',startTime:now2,duration:200,color:slots[idx].color.hex}));if(combo>=2)spawnComboPop(cx,cy-20,combo>=7?'🔥超级连击!':combo>=4?'⚡连击x'+combo:'combo x'+combo);comboTimer=setTimeout(()=>{combo=0},COMBO_TIMEOUT);setTimeout(()=>{mi.sort((a,b)=>b-a).forEach(i=>slots.splice(i,1));slots=slots.filter(Boolean);processing=false;if(screws.every(s=>s.removed)){sfxWin();setTimeout(winLevel,600)}},130)}else{if(slots.filter(Boolean).length>=MAX_SLOTS){processing=true;sfxLose();boardShake=1;const remain=screws.filter(s=>!s.removed).length;losePct=Math.round((totalScrewCount-remain)/totalScrewCount*100);setTimeout(()=>{showSkinPicker=false;showCheckin=false;showShopOverlay=false;showLvlPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showLoginOverlay=false;showLoseOverlay=true;processing=false},300)}else{setTimeout(()=>{processing=false},100)}}setTimeout(()=>{try{wx.setStorageSync('u_lv',level);wx.setStorageSync('u_sc',score);wx.setStorageSync('u_co',coins);wx.setStorageSync('u_pr',props)}catch(e){}},50)}
+function checkMatches(){const count={};slots.forEach((s,i)=>{if(!s)return;const k=s.color.name;if(!count[k])count[k]=[];count[k].push(i)});let mi=null;for(const cn in count){if(count[cn].length>=MATCH_COUNT){mi=count[cn].slice(0,MATCH_COUNT);break}}if(mi){processing=true;if(comboTimer)clearTimeout(comboTimer);combo++;const bonus=combo>1?combo*5:0;score+=30+bonus;sfxMatch();const cx=BOARD_X+BOARD_W/2,cy=BOARD_Y+BOARD_H*0.55;spawnParticles(cx,cy,slots[mi[0]].color.hex);const now2=Date.now();mi.forEach(idx=>slotAnims.push({idx,type:'glow',startTime:now2,duration:200,color:slots[idx].color.hex}));if(combo>=2)spawnComboPop(cx,cy-20,combo>=7?'🔥超级连击!':combo>=4?'⚡连击x'+combo:'combo x'+combo);comboTimer=setTimeout(()=>{combo=0},COMBO_TIMEOUT);setTimeout(()=>{mi.sort((a,b)=>b-a).forEach(i=>slots.splice(i,1));slots=slots.filter(Boolean);processing=false;if(screws.every(s=>s.removed)){sfxWin();setTimeout(winLevel,350)}},130)}else{if(slots.filter(Boolean).length>=MAX_SLOTS){processing=true;sfxLose();boardShake=1;const remain=screws.filter(s=>!s.removed).length;losePct=Math.round((totalScrewCount-remain)/totalScrewCount*100);setTimeout(()=>{showSkinPicker=false;showCheckin=false;showShopOverlay=false;showLvlPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showLoginOverlay=false;showLoseOverlay=true;processing=false},200)}else{setTimeout(()=>{processing=false},100)}}setTimeout(()=>{try{wx.setStorageSync('u_lv',level);wx.setStorageSync('u_sc',score);wx.setStorageSync('u_co',coins);wx.setStorageSync('u_pr',props)}catch(e){}},50)}
 function winLevel(){
   // 关闭所有其他弹窗
   showSkinPicker=false;showCheckin=false;showShopOverlay=false;
@@ -392,7 +392,7 @@ function doBomb(){if(slots.filter(Boolean).length===0)return false;const last=sl
 function doPeek(){const targets=screws.filter(s=>!s.removed&&s.blocked);if(targets.length===0||props.peek<=0)return false;props.peek--;peekTargets=targets.map(t=>t.id);sfxPeek();if(peekTimer)clearTimeout(peekTimer);peekTimer=setTimeout(()=>{peekTargets=[]},3000);return true}
 function doLightning(){const filled=slots.filter(Boolean);if(filled.length<2||props.lightning<=0)return false;props.lightning--;const groups={};filled.forEach(s=>{const k=s.color.name;if(!groups[k])groups[k]=[];groups[k].push(s)});let target=null;for(const k in groups){if(groups[k].length>=2){target=groups[k];break}}if(!target)return false;while(target.length>0&&slots.filter(Boolean).length>0){const idx=slots.findIndex(sl=>sl&&sl.color.name===target[0].color.name);if(idx>=0)slots.splice(idx,1);target.shift()}updateBlocked();return true}
 function doShuffle(){const alive=screws.filter(s=>!s.removed);if(alive.length<2||props.shuffle<=0)return false;props.shuffle--;const colors=alive.map(s=>s.color);for(let i=colors.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[colors[i],colors[j]]=[colors[j],colors[i]]}history.push({screwId:null,slots:slots.map(s=>s?{id:s.id,color:s.color}:null),score,combo,shuffleColors:alive.map((s,i)=>({id:s.id,color:s.color}))});alive.forEach((s,i)=>{s.color=colors[i]});updateBlocked();return true}
-function useProp(type){if(type==='undo'){if(doUndo()){props.undo--;showToast('已撤回')}}else if(type==='bomb'){if(doBomb()){props.bomb--;showToast('炸弹!')}}else if(type==='peek'){doPeek()}else if(type==='lightning'){if(doLightning())showToast('闪电!')}else if(type==='shuffle'){if(doShuffle())showToast('已洗牌')}}
+function useProp(type){if(type==='undo'){if(props.undo>0&&doUndo()){props.undo--;showToast('已撤回')}}else if(type==='bomb'){if(props.bomb>0&&doBomb()){props.bomb--;showToast('炸弹!')}}else if(type==='peek'){doPeek()}else if(type==='lightning'){if(doLightning())showToast('闪电!')}else if(type==='shuffle'){if(doShuffle())showToast('已洗牌')}}
 // ═══════════════════ Canvas 渲染 — 1:1 CSS 翻译 ═══════════════════
 // ═══ 层叠布局：9:16板(自适应满宽20px边距) → 槽 → 道具 → 信息 ═══
 const TOP_BAR_H = 195;
@@ -514,40 +514,6 @@ function drawBoard(){
     ctx.strokeStyle='rgba(0,0,0,0.25)';ctx.lineWidth=0.8;ctx.beginPath();ctx.arc(cx,cy,studR-0.3,0,Math.PI*2);ctx.stroke();
   }
 }
-// ── 螺丝本体预渲染缓存（8色，启动后异步生成截图为Image） ──
-const _screwBodyCache={},SCREW_REF_SIZE=48;
-function _preRenderScrewBodies(){
-  let oc;
-  try{oc=wx.createOffscreenCanvas({type:'2d',width:SCREW_REF_SIZE*2,height:SCREW_REF_SIZE*2})}catch(e){console.log('[unscrew] offscreen not supported, skip cache');return;}
-  const ox=oc.getContext('2d'),sr=SCREW_REF_SIZE;
-  for(const c of COLORS){
-    ox.clearRect(0,0,sr*2,sr*2);
-    const cx=sr,cy=sr;
-    ox.save();ox.shadowColor='rgba(0,0,0,0.25)';ox.shadowBlur=sr*0.25;ox.shadowOffsetY=sr*0.08;
-    ox.beginPath();ox.arc(cx,cy+sr*0.08,sr,0,Math.PI*2);ox.fillStyle='rgba(0,0,0,0.25)';ox.fill();ox.restore();
-    const gx=cx-sr*0.30,gy=cy-sr*0.30,gR=sr*1.84;
-    const g=ox.createRadialGradient(gx,gy,0,gx,gy,gR);
-    g.addColorStop(0,c.light);g.addColorStop(0.5,c.hex);g.addColorStop(1,shadeColor(c.hex,-30));
-    ox.beginPath();ox.arc(cx,cy,sr,0,Math.PI*2);ox.fillStyle=g;ox.fill();
-    ox.save();ox.beginPath();ox.arc(cx,cy,sr,0,Math.PI*2);ox.clip();
-    const igY=cy-sr,igR=sr*0.22;
-    const ig=ox.createLinearGradient(0,igY,0,igY+igR);
-    ig.addColorStop(0,'rgba(255,255,255,0.35)');ig.addColorStop(0.1,'rgba(255,255,255,0.28)');
-    ig.addColorStop(0.25,'rgba(255,255,255,0.10)');ig.addColorStop(0.55,'rgba(255,255,255,0.02)');
-    ig.addColorStop(1,'rgba(255,255,255,0)');
-    ox.fillStyle=ig;ox.fillRect(0,igY,sr*2,igR);
-    const bx2=cx-sr*0.34,by2=cy-sr*0.52,brx=sr*0.30,bry=sr*0.24;
-    ox.fillStyle='rgba(255,255,255,0.45)';
-    try{ox.beginPath();ox.ellipse(bx2,by2,brx,bry,-0.262,0,Math.PI*2);ox.fill()}catch(e){ox.beginPath();ox.arc(bx2,by2,brx,0,Math.PI*2);ox.fill()}
-    ox.restore();
-    wx.canvasToTempFilePath({canvas:oc,x:0,y:0,width:sr*2,height:sr*2,
-      success(res){
-        const img=wx.createImage();img.src=res.tempFilePath;
-        img.onload=()=>{_screwBodyCache[c.name]=img};
-      }
-    });
-  }
-}
 function drawOneScrew(s, isDying, dyingLife){
   const mapX=v=>v/100*(BOARD_W-8)+BOARD_X+4,mapY=v=>v/100*(BOARD_H-8)+BOARD_Y+4,mapR=v=>v*Math.min(BOARD_W,BOARD_H)/100/2;
   // 孔
@@ -559,13 +525,7 @@ function drawOneScrew(s, isDying, dyingLife){
     return;
   }
   const sx=mapX(s.x),sy=mapY(s.y),sr=mapR(s.size);
-  ctx.globalAlpha = isDying ? dyingLife : (s.blocked ? 0.4 : 1); // 被挡更明显(0.35→0.4)
-  const cached=_screwBodyCache[s.color.name];
-  if(cached){
-    // 缓存命中：直接贴图（外阴影+主体渐变+内高光+镜面高光已在截图中）
-    ctx.drawImage(cached, sx-sr, sy-sr, sr*2, sr*2);
-    drawFace(ctx, s.color.face, sx, sy, sr);
-  }else{
+  ctx.globalAlpha = isDying ? dyingLife : (s.blocked ? 0.4 : 1);
   // ═══ 1. 外阴影 box-shadow: rgba(0,0,0,0.25) 0 4px 12px ═══
   ctx.save();
   ctx.shadowColor='rgba(0,0,0,0.25)';ctx.shadowBlur=12;ctx.shadowOffsetY=4;
@@ -597,7 +557,6 @@ function drawOneScrew(s, isDying, dyingLife){
   ctx.restore();
   // ═══ 5. ::after 面孔 ═══
   drawFace(ctx, s.color.face, sx, sy, sr);
-  }
   ctx.globalAlpha=1;
 }
 function drawSlots(){
@@ -1363,12 +1322,12 @@ function sfxUndo(){playTone(200,0.2,'sine',0.08);playTone(600,0.22,'sine',0.06)}
 function sfxPeek(){playTone(400,0.25,'sine',0.05);playTone(1600,0.3,'sine',0.03)}
 // ── 游戏循环 ──
 function loop(){
-  for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vy+=0.06;p.life-=p.decay;if(p.life<=0)particles.splice(i,1)}
-  for(let i=dyingScrews.length-1;i>=0;i--){dyingScrews[i].life-=0.06;if(dyingScrews[i].life<=0)dyingScrews.splice(i,1)}
-  for(let i=comboPops.length-1;i>=0;i--){comboPops[i].life-=0.025;comboPops[i].y-=1.5;if(comboPops[i].life<=0)comboPops.splice(i,1)}
+  for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vy+=0.06;p.life-=p.decay*1.5;if(p.life<=0)particles.splice(i,1)}
+  for(let i=dyingScrews.length-1;i>=0;i--){dyingScrews[i].life-=0.10;if(dyingScrews[i].life<=0)dyingScrews.splice(i,1)}
+  for(let i=comboPops.length-1;i>=0;i--){comboPops[i].life-=0.04;comboPops[i].y-=1.5;if(comboPops[i].life<=0)comboPops.splice(i,1)}
   for(let i=slotAnims.length-1;i>=0;i--){const a=slotAnims[i];if(Date.now()-a.startTime>a.duration)slotAnims.splice(i,1)}
   if(boardShake>0)boardShake-=0.1;
   render();requestAnimationFrame(loop)
 }
 // ── 启动 ──
-try{console.log('[unscrew] W=',W,'H=',H,'board=',BOARD_W,'x',BOARD_H);loadGame();loadSkin();loadCheckin();loadNick();loadLB();try{tutDone=!!wx.getStorageSync('tut_done')}catch(e){}try{soundOn=wx.getStorageSync('sound')!=='0'}catch(e){}try{bgmOn=wx.getStorageSync('bgm')==='1'}catch(e){}initAd();generateLevel();requestAnimationFrame(loop);setTimeout(()=>{try{_preRenderScrewBodies()}catch(e){console.log('[unscrew] cache:',e.message)}},200);console.log('[unscrew] started');if(!tutDone)setTimeout(()=>{showTutorialOverlay=true;tutIdx=0},400)}catch(e){console.error('[unscrew] init error:',e.message,e.stack)}
+try{console.log('[unscrew] W=',W,'H=',H,'board=',BOARD_W,'x',BOARD_H);loadGame();loadSkin();loadCheckin();loadNick();loadLB();try{tutDone=!!wx.getStorageSync('tut_done')}catch(e){}try{soundOn=wx.getStorageSync('sound')!=='0'}catch(e){}try{bgmOn=wx.getStorageSync('bgm')==='1'}catch(e){}initAd();generateLevel();requestAnimationFrame(loop);console.log('[unscrew] started');if(!tutDone)setTimeout(()=>{showTutorialOverlay=true;tutIdx=0},400)}catch(e){console.error('[unscrew] init error:',e.message,e.stack)}
