@@ -1205,6 +1205,25 @@ function drawOverlays(){
     lbCloseBB=_drawClose(lx+lw-32,ly);
     return;
   }
+  // 隐私协议全文（在登录弹窗之前渲染，优先级更高）
+  if(showPrivacyText){
+    const pw=300,ph=Math.min(H-30,520),px=(W-pw)/2,py=(H-ph)/2;
+    _drawPanel(px,py,pw,ph,14);
+    const title=showPrivacyText==='privacy'?'隐私政策':'用户服务协议';
+    const text=showPrivacyText==='privacy'?PRIVACY_POLICY:USER_AGREEMENT;
+    _s();ctx.font='bold 16px sans-serif';ctx.fillStyle='#fbbf24';ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillText(title,W/2,py+28);_r();
+    // 正文
+    _s();
+    ctx.font='11px sans-serif';ctx.fillStyle='#94a3b8';ctx.textAlign='left';ctx.textBaseline='alphabetic';
+    const lines=text.split('\n');
+    const startY=py+52, lineH=15, maxLines=Math.floor((ph-60)/lineH);
+    for(let li=0;li<Math.min(lines.length,maxLines);li++){
+      ctx.fillText(lines[li],px+18,startY+li*lineH);
+    }
+    _r();
+    privacyTextCloseBB=_drawClose(px+pw-32,py);
+    return;
+  }
   // 登录/昵称
   if(showLoginOverlay){
     const mw=280,mh=240,mx=(W-mw)/2,my=(H-mh)/2;
@@ -1263,25 +1282,6 @@ function drawOverlays(){
     loginCloseBB=_drawClose(mx+mw-32,my);
     // 原生按钮在此创建（不在触控事件中，避免事件干扰）
     if(!nickname&&privacyAgreed){if(!userInfoBtn)showWxLoginBtn()}else{hideWxLoginBtn()}
-    return;
-  }
-  // 隐私协议全文
-  if(showPrivacyText){
-    const pw=300,ph=Math.min(H-30,520),px=(W-pw)/2,py=(H-ph)/2;
-    _drawPanel(px,py,pw,ph,14);
-    const title=showPrivacyText==='privacy'?'隐私政策':'用户服务协议';
-    const text=showPrivacyText==='privacy'?PRIVACY_POLICY:USER_AGREEMENT;
-    _s();ctx.font='bold 16px sans-serif';ctx.fillStyle='#fbbf24';ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillText(title,W/2,py+28);_r();
-    // 正文 — 按真实换行切分
-    _s();
-    ctx.font='11px sans-serif';ctx.fillStyle='#94a3b8';ctx.textAlign='left';ctx.textBaseline='alphabetic';
-    const lines=text.split(String.fromCharCode(10));
-    const startY=py+52, lineH=15, maxLines=Math.floor((ph-60)/lineH);
-    for(let li=0;li<Math.min(lines.length,maxLines);li++){
-      ctx.fillText(lines[li],px+18,startY+li*lineH);
-    }
-    _r();
-    privacyTextCloseBB=_drawClose(px+pw-32,py);
     return;
   }
 }
