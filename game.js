@@ -1239,37 +1239,41 @@ function drawOverlays(){
       _s();ctx.font='13px sans-serif';ctx.fillStyle='#f87171';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('退出登录',W/2,logoutY+logoutH/2);_r();
       loginBtnBB={id:'logout',x:logoutX,y:logoutY,w:logoutW,h:logoutH};
     }else if(!privacyAgreed){
-      // 隐私协议勾选
-      const chY=my+55,chSize=16;
-      const checkboxX=mx+30,checkboxY=chY;
+      // ── 隐私协议勾选 ──
+      const chSize=16, pad=20;
+      const cbX=mx+pad, cbY=my+56, cbCY=cbY+chSize/2; // 勾选框中心Y
+      // 两行文字布局
+      const txtX=cbX+chSize+8;
+      const gray='#94a3b8', blue='#6366f1';
+      _s();
+      ctx.font='11px sans-serif';ctx.textBaseline='middle';ctx.textAlign='left';
       // 勾选框
-      _s();ctx.textBaseline='middle';
-      ctx.fillStyle=privacyCheckOn?'#6366f1':'rgba(255,255,255,0.15)';
-      ctx.beginPath();ctx.roundRect(checkboxX,checkboxY,chSize,chSize,3);ctx.fill();
-      if(privacyCheckOn){ctx.fillStyle='#fff';ctx.font='12px sans-serif';ctx.fillText('✓',checkboxX+3,checkboxY+chSize/2+1)}
-      ctx.font='11px sans-serif';ctx.fillStyle='#94a3b8';
-      const txtX=checkboxX+chSize+6;
-      // 第一行：我已阅读并同意 + 《用户服务协议》和
-      ctx.fillText('我已阅读并同意',txtX,checkboxY+chSize/2+1);
+      ctx.fillStyle=privacyCheckOn?blue:'rgba(255,255,255,0.12)';
+      ctx.beginPath();ctx.roundRect(cbX,cbY,chSize,chSize,3);ctx.fill();
+      if(privacyCheckOn){ctx.font='12px sans-serif';ctx.fillStyle='#fff';ctx.fillText('✓',cbX+2.5,cbCY+1);ctx.font='11px sans-serif'}
+      // ── 第一行：我已阅读并同意《用户服务协议》和 ──
+      ctx.fillStyle=gray;
+      ctx.fillText('我已阅读并同意',txtX,cbCY);
       const m1=ctx.measureText('我已阅读并同意');
-      ctx.fillStyle='#6366f1';
-      ctx.fillText('《用户服务协议》',txtX+m1.width,checkboxY+chSize/2+1);
+      ctx.fillStyle=blue;
+      ctx.fillText('《用户服务协议》',txtX+m1.width,cbCY);
       const m2=ctx.measureText('《用户服务协议》');
-      ctx.fillStyle='#94a3b8';ctx.fillText('和',txtX+m1.width+m2.width,checkboxY+chSize/2+1);
-      // 第二行：《隐私政策》
-      const line2Y=checkboxY+chSize/2+1+16;
-      ctx.fillStyle='#6366f1';ctx.textAlign='left';
-      ctx.fillText('《隐私政策》',txtX,line2Y);
-      const mpBB=ctx.measureText('《隐私政策》');
+      ctx.fillStyle=gray;
+      ctx.fillText('和',txtX+m1.width+m2.width,cbCY);
+      // ── 第二行：《隐私政策》 ──
+      const line2CY=cbCY+16;
+      ctx.fillStyle=blue;
+      ctx.fillText('《隐私政策》',txtX,line2CY);
+      const m3=ctx.measureText('《隐私政策》');
       _r();
-      privacyCB={x:checkboxX,y:checkboxY,w:chSize,h:chSize};
-      privacyUserBB={x:txtX+m1.width,y:checkboxY,w:m2.width,h:chSize};
-      privacyPolicyBB={x:txtX,y:line2Y-8,w:mpBB.width,h:chSize};
-      // 确认按钮(勾选后才亮)
-      const btnW=180,btnH=36,btnX=W/2-btnW/2,btnY=my+108;
+      privacyCB={x:cbX,y:cbY,w:chSize,h:chSize};
+      privacyUserBB={x:txtX+m1.width,y:cbY,w:m2.width,h:chSize};
+      privacyPolicyBB={x:txtX,y:line2CY-8,w:m3.width,h:chSize};
+      // 确认按钮
+      const btnW=180,btnH=36,btnX=W/2-btnW/2,btnY=my+110;
       if(privacyCheckOn){
         const ng=ctx.createLinearGradient(0,btnY,0,btnY+btnH);
-        ng.addColorStop(0,'#6366f1');ng.addColorStop(1,'#06b6d4');
+        ng.addColorStop(0,blue);ng.addColorStop(1,'#06b6d4');
         ctx.fillStyle=ng;ctx.beginPath();ctx.roundRect(btnX,btnY,btnW,btnH,18);ctx.fill();
         _s();ctx.font='bold 14px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('同意并登录',W/2,btnY+btnH/2);_r();
       }else{
