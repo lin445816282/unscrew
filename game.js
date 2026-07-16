@@ -343,16 +343,22 @@ function showWxLoginBtn(){
         style:{left:W/2-70,top:H/2+65,width:140,height:42,lineHeight:42,
           backgroundColor:'#07c160',color:'#ffffff',textAlign:'center',fontSize:15,borderRadius:21}});
       userInfoBtn.onTap(res=>{
-        console.log('[login] onTap:',JSON.stringify(res));
-        if(res.errMsg.indexOf(':ok')>-1){
-          // 新版优先 rawData，旧版 fallback 用 getUserInfo
-          if(res.rawData){
-            try{const u=JSON.parse(res.rawData);setNick(u.nickName||'微信用户',u.avatarUrl||'');showToast('欢迎 '+nickname)}catch(e){}
-          }else if(res.userInfo){
-            setNick(res.userInfo.nickName||'微信用户',res.userInfo.avatarUrl||'');showToast('欢迎 '+nickname);
+        try{
+          console.log('[login] onTap:',JSON.stringify(res||{}));
+          const ok=res&&res.errMsg&&res.errMsg.indexOf(':ok')>-1;
+          if(ok){
+            if(res.rawData){
+              try{const u=JSON.parse(res.rawData);setNick(u.nickName||'微信用户',u.avatarUrl||'');showToast('欢迎 '+nickname)}catch(e){console.log('[login] rawData parse:',e)}
+            }else if(res.userInfo){
+              setNick(res.userInfo.nickName||'微信用户',res.userInfo.avatarUrl||'');showToast('欢迎 '+nickname);
+            }else{
+              try{wx.getUserInfo({success:r=>{const u=r.userInfo;if(u){setNick(u.nickName||'微信用户',u.avatarUrl||'')}},fail:()=>{}})}catch(e){}
+            }
           }else{
-            wx.getUserInfo({success:r=>{const u=r.userInfo;setNick(u.nickName||'微信用户',u.avatarUrl||'');showToast('欢迎 '+nickname)},fail:()=>{showToast('登录失败，请重试')}});
+            console.log('[login] cancelled or failed:',res?res.errMsg:'no response');
           }
+        }catch(e){
+          console.log('[login] onTap error:',e);
         }
         showLoginOverlay=false;hideWxLoginBtn()
       });
