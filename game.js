@@ -339,9 +339,11 @@ function logoutUser(){nickname='';avatarUrl='';setNick('','');showToast('已退�
 function showWxLoginBtn(){
   if(!userInfoBtn){
     try{
+      // 面板 mh=260，居中 → my=(H-260)/2
+      const btnW=160,btnH=44,btnTop=(H-260)/2+95;
       userInfoBtn=wx.createUserInfoButton({type:'text',text:'微信一键登录',
-        style:{left:W/2-70,top:H/2+65,width:140,height:42,lineHeight:42,
-          backgroundColor:'#07c160',color:'#ffffff',textAlign:'center',fontSize:15,borderRadius:21}});
+        style:{left:(W-btnW)/2,top:btnTop,width:btnW,height:btnH,lineHeight:btnH,
+          backgroundColor:'#07c160',color:'#ffffff',textAlign:'center',fontSize:15,borderRadius:btnH/2}});
       userInfoBtn.onTap(res=>{
         console.log('[login] onTap:',JSON.stringify(res));
         if(res.errMsg.indexOf(':ok')>-1){
