@@ -1267,17 +1267,18 @@ function drawOverlays(){
   }
   // 隐私协议全文
   if(showPrivacyText){
-    const pw=300,ph=380,px=(W-pw)/2,py=(H-ph)/2;
-    _drawPanel(px,py,pw,ph,16);
+    const pw=300,ph=Math.min(H-30,520),px=(W-pw)/2,py=(H-ph)/2;
+    _drawPanel(px,py,pw,ph,14);
     const title=showPrivacyText==='privacy'?'隐私政策':'用户服务协议';
     const text=showPrivacyText==='privacy'?PRIVACY_POLICY:USER_AGREEMENT;
-    _s();ctx.font='bold 18px sans-serif';ctx.fillStyle='#fbbf24';ctx.textAlign='center';ctx.fillText(title,W/2,py+30);_r();
-    // 滚动文本
+    _s();ctx.font='bold 16px sans-serif';ctx.fillStyle='#fbbf24';ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillText(title,W/2,py+28);_r();
+    // 正文 — 按真实换行切分
     _s();
-    ctx.font='11px sans-serif';ctx.fillStyle='#94a3b8';ctx.textAlign='left';
-    const lines=text.split('\n');
-    for(let li=0;li<lines.length;li++){
-      ctx.fillText(lines[li],px+20,py+58+li*18);
+    ctx.font='11px sans-serif';ctx.fillStyle='#94a3b8';ctx.textAlign='left';ctx.textBaseline='alphabetic';
+    const lines=text.split(String.fromCharCode(10));
+    const startY=py+52, lineH=15, maxLines=Math.floor((ph-60)/lineH);
+    for(let li=0;li<Math.min(lines.length,maxLines);li++){
+      ctx.fillText(lines[li],px+18,startY+li*lineH);
     }
     _r();
     privacyTextCloseBB=_drawClose(px+pw-32,py);
