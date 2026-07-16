@@ -204,8 +204,7 @@ function drawPattern(ctx, pattern, sx, sy, sr) {
 const MAX_SLOTS=7, MATCH_COUNT=3, COMBO_TIMEOUT=1500;
 // ── 状态 ──
 let screws=[], slots=[], score=0, level=1, combo=0;
-let history=[], processing=false, paused=false;
-let pauseContinueBB=null, pauseRestartBB=null, pausePanelBB=null;
+let history=[], processing=false, paused=false, pauseBtnBB=null;
 let comboTimer=null, totalScrewCount=0, starMoves=0, winStars=0, winEfficiency=0;
 let props={undo:5,bomb:3,peek:3,lightning:3,shuffle:3};
 let coins=30, particles=[], dyingScrews=[], comboPops=[], slotAnims=[];
@@ -229,7 +228,7 @@ function saveGame(){try{wx.setStorageSync('u_lv',level);wx.setStorageSync('u_sc'
 function loadGame(){try{level=wx.getStorageSync('u_lv')||1;score=wx.getStorageSync('u_sc')||0;coins=wx.getStorageSync('u_co')||30;const p=wx.getStorageSync('u_pr');if(p)props=p}catch(e){}}
 // ── 主题 ──
 function loadSkin(){try{activeSkin=wx.getStorageSync('skin')||'default'}catch(e){}}
-function setSkin(sid){activeSkin=sid;try{wx.setStorageSync('skin',sid)}catch(e){};showSkinPicker=false;_dirty=true}
+function setSkin(sid){activeSkin=sid;try{wx.setStorageSync('skin',sid)}catch(e){};showSkinPicker=false}
 function getSkin(){return SKINS.find(s=>s.id===activeSkin)||SKINS[0]}
 // ── 每日签到 ──
 function loadCheckin(){try{const d=wx.getStorageSync('checkin');if(d){ckData=d}}catch(e){}}
@@ -279,48 +278,6 @@ function loadLB(){try{lbData=JSON.parse(wx.getStorageSync('lb')||'[]')}catch(e){
 function submitLB(){var today=getToday();var entry={nick:nickname||'萌糖玩家',score:score,level:level,date:today};lbData.push(entry);lbData.sort((a,b)=>b.score-a.score);if(lbData.length>50)lbData=lbData.slice(0,50);wx.setStorageSync('lb',JSON.stringify(lbData))}
 // ── 本地登录/昵称 ──
 let nickname='', avatarUrl='', showLoginOverlay=false, userInfoBtn=null;
-// ── 性能优化标记 ──
-let _dirty=true, _screwDrawOrder=[], _holeCache=[];
-// ── 螺丝本体预渲染缓存（8色×参考尺寸，每帧只贴图+画面孔） ──
-const _screwBodyCache={},SCREW_REF_SIZE=48;
-function _preRenderScrewBodies(){
-  let oc;
-  try{oc=wx.createOffscreenCanvas({type:'2d',width:SCREW_REF_SIZE*2,height:SCREW_REF_SIZE*2})}catch(e){console.log('[unscrew] offscreen unsupported, fallback inline');return;}
-  const ox=oc.getContext('2d'),sr=SCREW_REF_SIZE;
-  for(const c of COLORS){
-    ox.clearRect(0,0,sr*2,sr*2);
-    const cx=sr,cy=sr;
-    // 外阴影
-    ox.save();ox.shadowColor='rgba(0,0,0,0.25)';ox.shadowBlur=sr*0.25;ox.shadowOffsetY=sr*0.08;
-    ox.beginPath();ox.arc(cx,cy+sr*0.08,sr,0,Math.PI*2);
-    ox.fillStyle='rgba(0,0,0,0.25)';ox.fill();ox.restore();
-    // 主体渐变
-    const gx=cx-sr*0.30,gy=cy-sr*0.30,gR=sr*1.84;
-    const g=ox.createRadialGradient(gx,gy,0,gx,gy,gR);
-    g.addColorStop(0,c.light);g.addColorStop(0.5,c.hex);g.addColorStop(1,shadeColor(c.hex,-30));
-    ox.beginPath();ox.arc(cx,cy,sr,0,Math.PI*2);ox.fillStyle=g;ox.fill();
-    // 内高光
-    ox.save();ox.beginPath();ox.arc(cx,cy,sr,0,Math.PI*2);ox.clip();
-    const igY=cy-sr,igR=sr*0.22;
-    const ig=ox.createLinearGradient(0,igY,0,igY+igR);
-    ig.addColorStop(0,'rgba(255,255,255,0.35)');ig.addColorStop(0.1,'rgba(255,255,255,0.28)');
-    ig.addColorStop(0.25,'rgba(255,255,255,0.10)');ig.addColorStop(0.55,'rgba(255,255,255,0.02)');
-    ig.addColorStop(1,'rgba(255,255,255,0)');
-    ox.fillStyle=ig;ox.fillRect(0,igY,sr*2,igR);
-    // 左上镜面高光
-    const bx2=cx-sr*0.34,by2=cy-sr*0.52,brx=sr*0.30,bry=sr*0.24;
-    ox.fillStyle='rgba(255,255,255,0.45)';
-    try{ox.beginPath();ox.ellipse(bx2,by2,brx,bry,-0.262,0,Math.PI*2);ox.fill()}catch(e){ox.beginPath();ox.arc(bx2,by2,brx,0,Math.PI*2);ox.fill()}
-    ox.restore();
-    // 存为Image（异步）
-    wx.canvasToTempFilePath({canvas:oc,x:0,y:0,width:sr*2,height:sr*2,
-      success(res){
-        const img=wx.createImage();img.src=res.tempFilePath;
-        img.onload=()=>{_screwBodyCache[c.name]=img;_dirty=true};
-      }
-    });
-  }
-}
 function loadNick(){try{nickname=wx.getStorageSync('nick')||'';avatarUrl=wx.getStorageSync('avatar')||''}catch(e){}}
 function setNick(n,a){nickname=n;avatarUrl=a||'';try{wx.setStorageSync('nick',n);if(a)wx.setStorageSync('avatar',a)}catch(e){}}
 function logoutUser(){nickname='';avatarUrl='';setNick('','');showToast('已退出')}
@@ -371,24 +328,9 @@ function spawnParticles(cx,cy,hex){for(let i=0;i<10;i++){const a=Math.random()*M
 function spawnComboPop(cx,cy,txt){comboPops.push({x:cx,y:cy,text:txt,life:1,size:txt.length>3?36:txt.length>1?28:22})}
 // ── 遮挡 ──
 function updateBlocked(removedId){
-  if(removedId!==undefined){
-    const rs=screws.find(s=>s.id===removedId);if(!rs)return;const rr=rs.size/2;
-    for(const s of screws){
-      if(s.removed||s.layer>=rs.layer)continue; // 只重算被移除螺丝下方的层
-      const d=dist(s,rs);if(d<rr+s.size/2){
-        let tc=0;const myA=Math.PI*(s.size/2)**2;
-        for(const o of screws){if(o.removed||o.id===removedId||o.layer<=s.layer)continue;const d2=dist(s,o);if(d2<s.size/2+o.size/2)tc+=circleOverlap(s.size/2,o.size/2,d2)}
-        s.blockedPct=Math.min(1,tc/myA);s.blocked=s.blockedPct>Math.max(0.35,0.5-Math.floor(level/10)*0.05)
-      }
-    }
-    return
-  }
+  if(removedId!==undefined){const rs=screws.find(s=>s.id===removedId);if(!rs)return;const rr=rs.size/2;for(const s of screws){if(s.removed||s.layer<=rs.layer)continue;const d=dist(s,rs);if(d<rr+s.size/2){let tc=0;const myA=Math.PI*(s.size/2)**2;for(const o of screws){if(o.removed||o.id===removedId||o.layer>=s.layer)continue;const d2=dist(s,o);if(d2<s.size/2+o.size/2)tc+=circleOverlap(s.size/2,o.size/2,d2)}s.blockedPct=Math.min(1,tc/myA);s.blocked=s.blockedPct>Math.max(0.35,0.5-Math.floor(level/10)*0.05)}}return}
   for(const s of screws){s.blocked=false;s.blockedPct=0}
-  for(const s of screws){
-    if(s.removed)continue;let tc=0;const myA=Math.PI*(s.size/2)**2;
-    for(const o of screws){if(o.removed||o.layer<=s.layer)continue;const d=dist(s,o);if(d<s.size/2+o.size/2)tc+=circleOverlap(s.size/2,o.size/2,d)}
-    s.blockedPct=Math.min(1,tc/myA);s.blocked=s.blockedPct>Math.max(0.35,0.5-Math.floor(level/10)*0.05)
-  }
+  for(const s of screws){if(s.removed)continue;let tc=0;const myA=Math.PI*(s.size/2)**2;for(const o of screws){if(o.removed||o.layer>=s.layer)continue;const d=dist(s,o);if(d<s.size/2+o.size/2)tc+=circleOverlap(s.size/2,o.size/2,d)}s.blockedPct=Math.min(1,tc/myA);s.blocked=s.blockedPct>Math.max(0.35,0.5-Math.floor(level/10)*0.05)}
 }
 // ── 关卡生成 ──
 function generateLevel(){
@@ -403,12 +345,12 @@ function generateLevel(){
   for(let li=0;li<numLayers&&idx<total;li++){
     const count=li===numLayers-1?total-idx:Math.round(total*weights[li]/totalWeight),used={};
     for(let b=0;b<count&&idx<total;b++){let x,y,key,attempts=0;do{x=4+Math.random()*92;y=4+Math.random()*92;key=Math.round(x/5)+'_'+Math.round(y/5);attempts++}while(used[key]&&attempts<30);used[key]=1;
-      screws.push({id:idx,x,y,size:Math.max(18,22-Math.floor(Math.min(level,7)/3)*2),layer:li,color:screwList[idx].color,removed:false,blocked:false,blockedPct:0,removing:false});idx++}
+      screws.push({id:idx,x,y,size:Math.max(10,22-Math.floor(level/3)*2),layer:li,color:screwList[idx].color,removed:false,blocked:false,blockedPct:0,removing:false});idx++}
   }
   screws.sort((a,b)=>b.layer-a.layer);screws.forEach((s,i)=>s.id=i);
   updateBlocked();
   for(let rr=0;rr<15;rr++){const bad=levelColors.filter(lc=>!screws.some(s=>!s.removed&&!s.blocked&&s.color.name===lc.name));if(bad.length===0)break;for(const bc of bad)for(const s of screws)if(!s.removed&&s.blocked&&s.color.name===bc.name)s.blocked=false;updateBlocked()}
-  totalScrewCount=total;_screwDrawOrder=[...screws].sort((a,b)=>a.layer-b.layer||(a.removed?0:1)-(b.removed?0:1)||(b.blocked?1:0)-(a.blocked?1:0)||a.id-b.id);_rebuildHoleCache();_dirty=true;
+  totalScrewCount=total;console.log('[unscrew] level',level,'screws',total,'colors',numColors);
 }
 // ── 求解器 ──
 function isSolvable(){
@@ -422,7 +364,7 @@ function isSolvable(){
 }
 // ── 游戏逻辑 ──
 let _clickLock=0;
-function processClick(screw){if(processing||paused||!screw||screw.blocked||screw.removed)return;const now=Date.now();if(now-_clickLock<80)return;_clickLock=now;processing=true;history.push({screwId:screw.id,slots:slots.map(s=>s?{id:s.id,color:s.color}:null),score,combo});dyingScrews.push({id:screw.id,x:screw.x,y:screw.y,size:screw.size,color:screw.color,life:1,layer:screw.layer});screw.removed=true;_rebuildHoleCache();starMoves++;slots.push({id:screw.id,color:screw.color});const slotIdx=slots.length-1;slotAnims.push({idx:slotIdx,type:'popIn',startTime:Date.now(),duration:250,color:screw.color.hex});sfxClick();updateBlocked(screw.id);_dirty=true;checkMatches()}
+function processClick(screw){if(processing||paused||!screw||screw.blocked||screw.removed)return;const now=Date.now();if(now-_clickLock<80)return;_clickLock=now;processing=true;history.push({screwId:screw.id,slots:slots.map(s=>s?{id:s.id,color:s.color}:null),score,combo});dyingScrews.push({id:screw.id,x:screw.x,y:screw.y,size:screw.size,color:screw.color,life:1});screw.removed=true;starMoves++;slots.push({id:screw.id,color:screw.color});const slotIdx=slots.length-1;slotAnims.push({idx:slotIdx,type:'popIn',startTime:Date.now(),duration:250,color:screw.color.hex});sfxClick();updateBlocked(screw.id);checkMatches()}
 function checkMatches(){const count={};slots.forEach((s,i)=>{if(!s)return;const k=s.color.name;if(!count[k])count[k]=[];count[k].push(i)});let mi=null;for(const cn in count){if(count[cn].length>=MATCH_COUNT){mi=count[cn].slice(0,MATCH_COUNT);break}}if(mi){processing=true;if(comboTimer)clearTimeout(comboTimer);combo++;const bonus=combo>1?combo*5:0;score+=30+bonus;sfxMatch();const cx=BOARD_X+BOARD_W/2,cy=BOARD_Y+BOARD_H*0.55;spawnParticles(cx,cy,slots[mi[0]].color.hex);const now2=Date.now();mi.forEach(idx=>slotAnims.push({idx,type:'glow',startTime:now2,duration:200,color:slots[idx].color.hex}));if(combo>=2)spawnComboPop(cx,cy-20,combo>=7?'🔥超级连击!':combo>=4?'⚡连击x'+combo:'combo x'+combo);comboTimer=setTimeout(()=>{combo=0},COMBO_TIMEOUT);setTimeout(()=>{mi.sort((a,b)=>b-a).forEach(i=>slots.splice(i,1));slots=slots.filter(Boolean);processing=false;if(screws.every(s=>s.removed)){sfxWin();setTimeout(winLevel,600)}},130)}else{if(slots.filter(Boolean).length>=MAX_SLOTS){processing=true;sfxLose();boardShake=1;const remain=screws.filter(s=>!s.removed).length;losePct=Math.round((totalScrewCount-remain)/totalScrewCount*100);setTimeout(()=>{showSkinPicker=false;showCheckin=false;showShopOverlay=false;showLvlPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showLoginOverlay=false;showLoseOverlay=true;processing=false},300)}else{setTimeout(()=>{processing=false},100)}}setTimeout(()=>{try{wx.setStorageSync('u_lv',level);wx.setStorageSync('u_sc',score);wx.setStorageSync('u_co',coins);wx.setStorageSync('u_pr',props)}catch(e){}},50)}
 function winLevel(){
   // 关闭所有其他弹窗
@@ -445,9 +387,9 @@ function winLevel(){
 }
 function restartLevel(){showSkinPicker=false;showCheckin=false;showShopOverlay=false;showLvlPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showLoginOverlay=false;hideWxLoginBtn();showLoseOverlay=false;showWinOverlay=false;generateLevel()}
 // ── 道具 ──
-function doUndo(){if(history.length===0)return false;showLoseOverlay=false;const last=history.pop();if(last.screwId!==null&&last.screwId!==undefined){const s=screws.find(x=>x.id===last.screwId);if(s){s.removed=false;s.blocked=false}const idx=slots.findIndex(sl=>sl&&sl.id===last.screwId);if(idx>=0)slots.splice(idx,1)}if(last.shuffleColors){for(const sc of last.shuffleColors){const s=screws.find(x=>x.id===sc.id);if(s)s.color=sc.color}}slots=last.slots.filter(Boolean);score=last.score;combo=last.combo;updateBlocked();_rebuildHoleCache();_dirty=true;return true}
-function doBomb(){if(slots.filter(Boolean).length===0)return false;const last=slots.pop();const s=screws.find(x=>x.id===last.id);if(s){s.removed=false;s.blocked=false}sfxBomb();updateBlocked();_rebuildHoleCache();_dirty=true;return true}
-function doPeek(){const targets=screws.filter(s=>!s.removed&&s.blocked);if(targets.length===0||props.peek<=0)return false;props.peek--;peekTargets=targets.map(t=>t.id);_dirty=true;sfxPeek();if(peekTimer)clearTimeout(peekTimer);peekTimer=setTimeout(()=>{peekTargets=[];_dirty=true},3000);return true}
+function doUndo(){if(history.length===0)return false;showLoseOverlay=false;const last=history.pop();if(last.screwId!==null&&last.screwId!==undefined){const s=screws.find(x=>x.id===last.screwId);if(s){s.removed=false;s.blocked=false}const idx=slots.findIndex(sl=>sl&&sl.id===last.screwId);if(idx>=0)slots.splice(idx,1)}if(last.shuffleColors){for(const sc of last.shuffleColors){const s=screws.find(x=>x.id===sc.id);if(s)s.color=sc.color}}slots=last.slots.filter(Boolean);score=last.score;combo=last.combo;updateBlocked();return true}
+function doBomb(){if(slots.filter(Boolean).length===0)return false;const last=slots.pop();const s=screws.find(x=>x.id===last.id);if(s){s.removed=false;s.blocked=false}sfxBomb();updateBlocked();return true}
+function doPeek(){const targets=screws.filter(s=>!s.removed&&s.blocked);if(targets.length===0||props.peek<=0)return false;props.peek--;peekTargets=targets.map(t=>t.id);sfxPeek();if(peekTimer)clearTimeout(peekTimer);peekTimer=setTimeout(()=>{peekTargets=[]},3000);return true}
 function doLightning(){const filled=slots.filter(Boolean);if(filled.length<2||props.lightning<=0)return false;props.lightning--;const groups={};filled.forEach(s=>{const k=s.color.name;if(!groups[k])groups[k]=[];groups[k].push(s)});let target=null;for(const k in groups){if(groups[k].length>=2){target=groups[k];break}}if(!target)return false;while(target.length>0&&slots.filter(Boolean).length>0){const idx=slots.findIndex(sl=>sl&&sl.color.name===target[0].color.name);if(idx>=0)slots.splice(idx,1);target.shift()}updateBlocked();return true}
 function doShuffle(){const alive=screws.filter(s=>!s.removed);if(alive.length<2||props.shuffle<=0)return false;props.shuffle--;const colors=alive.map(s=>s.color);for(let i=colors.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[colors[i],colors[j]]=[colors[j],colors[i]]}history.push({screwId:null,slots:slots.map(s=>s?{id:s.id,color:s.color}:null),score,combo,shuffleColors:alive.map((s,i)=>({id:s.id,color:s.color}))});alive.forEach((s,i)=>{s.color=colors[i]});updateBlocked();return true}
 function useProp(type){if(type==='undo'){if(doUndo()){props.undo--;showToast('已撤回')}}else if(type==='bomb'){if(doBomb()){props.bomb--;showToast('炸弹!')}}else if(type==='peek'){doPeek()}else if(type==='lightning'){if(doLightning())showToast('闪电!')}else if(type==='shuffle'){if(doShuffle())showToast('已洗牌')}}
@@ -483,53 +425,86 @@ const STAR_COUNT=80, stars=[];
     stars.push({x:rng()*W, y:rng()*H*0.9, r:0.4+rng()*1.2, a:0.3+rng()*0.5, twinkle:rng()*Math.PI*2});
   }
 })();
-// 板面不再缓存，直接用静态渲染。优化重点在螺丝预渲染。
 function drawBoard(){
+  // ═══ 第0层：深空背景 ═══
   const sk=getSkin();
   ctx.fillStyle=sk.bgBot;ctx.fillRect(0,0,W,H);
-  const bloomX=W/2,bloomY=H*0.35,bloomR=Math.max(W,H)*0.7;
+  // 径向光晕（中部偏上）
+  const bloomX=W/2, bloomY=H*0.35, bloomR=Math.max(W,H)*0.7;
   const bloom=ctx.createRadialGradient(bloomX,bloomY,bloomR*0.1,bloomX,bloomY,bloomR);
-  bloom.addColorStop(0,'rgba(80,100,180,0.10)');bloom.addColorStop(0.3,'rgba(50,60,140,0.06)');
-  bloom.addColorStop(0.6,'rgba(20,25,80,0.03)');bloom.addColorStop(1,'transparent');
+  bloom.addColorStop(0,'rgba(80,100,180,0.10)');
+  bloom.addColorStop(0.3,'rgba(50,60,140,0.06)');
+  bloom.addColorStop(0.6,'rgba(20,25,80,0.03)');
+  bloom.addColorStop(1,'transparent');
   ctx.fillStyle=bloom;ctx.fillRect(0,0,W,H);
+  // 第二光晕（更柔和，底部）
   const bloom2=ctx.createRadialGradient(W*0.25,H*0.65,0,W*0.25,H*0.65,W*0.8);
-  bloom2.addColorStop(0,'rgba(30,40,100,0.05)');bloom2.addColorStop(1,'transparent');
+  bloom2.addColorStop(0,'rgba(30,40,100,0.05)');
+  bloom2.addColorStop(1,'transparent');
   ctx.fillStyle=bloom2;ctx.fillRect(0,0,W,H);
+  // 星空粒子
   const t=Date.now()*0.0003;
-  for(const s of stars){const a=s.a*(0.7+0.3*Math.sin(t+s.twinkle));ctx.fillStyle=`rgba(200,210,255,${a.toFixed(2)})`;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill();}
+  for(const s of stars){
+    const a=s.a*(0.7+0.3*Math.sin(t+s.twinkle));
+    ctx.fillStyle=`rgba(200,210,255,${a.toFixed(2)})`;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill();
+  }
+  // 顶部渐变叠加（主题色融合）
   const tbg=ctx.createLinearGradient(0,0,0,H);
   tbg.addColorStop(0,sk.bgTop+'dd');tbg.addColorStop(0.5,'transparent');tbg.addColorStop(1,sk.bgBot+'88');
   ctx.fillStyle=tbg;ctx.fillRect(0,0,W,H);
+  // ═══ 第1层：棋盘外阴影 + 底座 ═══
   const bx=BOARD_X+3,by=BOARD_Y,bw=BOARD_W-6,bh=BOARD_H;
-  ctx.save();ctx.shadowColor='rgba(0,0,0,0.50)';ctx.shadowBlur=48;ctx.shadowOffsetY=10;
-  ctx.fillStyle='rgba(0,0,0,0.50)';ctx.beginPath();ctx.roundRect(BOARD_X,BOARD_Y,BOARD_W,BOARD_H,16);ctx.fill();ctx.restore();
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,0.50)';ctx.shadowBlur=48;ctx.shadowOffsetY=10;
+  ctx.fillStyle='rgba(0,0,0,0.50)';ctx.beginPath();ctx.roundRect(BOARD_X,BOARD_Y,BOARD_W,BOARD_H,16);ctx.fill();
+  ctx.restore();
+  // 底座边框（两层，模拟厚度）
   ctx.fillStyle=sk.boardBorder;ctx.beginPath();ctx.roundRect(BOARD_X-3,BOARD_Y-3,BOARD_W+6,BOARD_H+6,18);ctx.fill();
   ctx.fillStyle=shadeColor(sk.boardBorder,18);ctx.beginPath();ctx.roundRect(BOARD_X-1,BOARD_Y-1,BOARD_W+2,BOARD_H+2,16);ctx.fill();
+  // ═══ 第2层：木板主体 ═══
   const a175=175*Math.PI/180,dx175=Math.sin(a175),dy175=-Math.cos(a175);
   const wbg=ctx.createLinearGradient(bx,by,bx+dx175*bw,by+dy175*bh);
   wbg.addColorStop(0,sk.boardTop);wbg.addColorStop(0.12,shadeColor(sk.boardTop,-4));
-  wbg.addColorStop(0.18,sk.boardMid);wbg.addColorStop(0.32,sk.boardTop);
-  wbg.addColorStop(0.50,sk.boardMid);wbg.addColorStop(0.72,sk.boardBot);
-  wbg.addColorStop(0.88,shadeColor(sk.boardBot,6));wbg.addColorStop(1,sk.boardBot);
+  wbg.addColorStop(0.18,sk.boardMid);
+  wbg.addColorStop(0.32,sk.boardTop);
+  wbg.addColorStop(0.50,sk.boardMid);
+  wbg.addColorStop(0.72,sk.boardBot);
+  wbg.addColorStop(0.88,shadeColor(sk.boardBot,6));
+  wbg.addColorStop(1,sk.boardBot);
   ctx.fillStyle=wbg;ctx.beginPath();ctx.roundRect(bx,by,bw,bh,14);ctx.fill();
+  // ═══ 第3层：木纹纹理（三层叠加，有机交错） ═══
   ctx.save();ctx.beginPath();ctx.roundRect(bx+6,by+6,bw-12,bh-12,8);ctx.clip();
+  // L1: 细密横纹 (暖色)
   ctx.strokeStyle='rgba(120,80,40,0.04)';ctx.lineWidth=0.8;
-  for(let y=by+6;y<by+bh-6;y+=4.5){const off=Math.tan(1.5*Math.PI/180)*(y-by);ctx.beginPath();ctx.moveTo(bx+off,y);ctx.lineTo(bx+off+bw+4,y);ctx.stroke();}
+  for(let y=by+6;y<by+bh-6;y+=4.5){
+    const off=Math.tan(1.5*Math.PI/180)*(y-by);
+    ctx.beginPath();ctx.moveTo(bx+off,y);ctx.lineTo(bx+off+bw+4,y);ctx.stroke();
+  }
+  // L2: 宽疏斜纹 (暗调)
   ctx.strokeStyle='rgba(0,0,0,0.035)';ctx.lineWidth=2.5;
-  for(let x=bx-10;x<bx+bw+10;x+=36){ctx.beginPath();ctx.moveTo(x,by-4);ctx.lineTo(x-(bh*Math.tan(3.5*Math.PI/180)),by+bh+4);ctx.stroke();}
+  for(let x=bx-10;x<bx+bw+10;x+=36){
+    ctx.beginPath();ctx.moveTo(x,by-4);ctx.lineTo(x-(bh*Math.tan(3.5*Math.PI/180)),by+bh+4);ctx.stroke();
+  }
+  // L3: 中密反斜纹 (亮调)
   ctx.strokeStyle='rgba(200,150,100,0.035)';ctx.lineWidth=1;
-  for(let d=-bh;d<bw+bh;d+=48){ctx.beginPath();ctx.moveTo(bx+d,by);ctx.lineTo(bx+d+bh*Math.tan(3*Math.PI/180),by+bh);ctx.stroke();}
+  for(let d=-bh;d<bw+bh;d+=48){
+    ctx.beginPath();ctx.moveTo(bx+d,by);ctx.lineTo(bx+d+bh*Math.tan(3*Math.PI/180),by+bh);ctx.stroke();
+  }
   ctx.restore();
+  // ═══ 第4层：内阴影 + 顶部高光 ═══
   ctx.save();ctx.beginPath();ctx.roundRect(bx,by,bw,bh,14);ctx.clip();
   const ish=ctx.createLinearGradient(0,by,0,by+bh);
   ish.addColorStop(0,'rgba(0,0,0,0.18)');ish.addColorStop(0.08,'rgba(0,0,0,0.06)');
-  ish.addColorStop(0.5,'rgba(0,0,0,0)');ish.addColorStop(0.88,'rgba(0,0,0,0.04)');ish.addColorStop(1,'rgba(0,0,0,0.12)');
+  ish.addColorStop(0.5,'rgba(0,0,0,0)');
+  ish.addColorStop(0.88,'rgba(0,0,0,0.04)');ish.addColorStop(1,'rgba(0,0,0,0.12)');
   ctx.fillStyle=ish;ctx.fillRect(bx,by,bw,bh);
+  // 顶部边缘光
   const edgeGlow=ctx.createLinearGradient(0,by,0,by+4);
   edgeGlow.addColorStop(0,'rgba(255,255,255,0.10)');edgeGlow.addColorStop(1,'transparent');
   ctx.fillStyle=edgeGlow;ctx.fillRect(bx+10,by+1,bw-20,4);
   ctx.restore();
-  const studR=4,studPad=12;
+  // ═══ 第5层：四角铆钉 ═══
+  const studR=4, studPad=12;
   const corners=[[bx+studPad,by+studPad],[bx+bw-studPad,by+studPad],[bx+studPad,by+bh-studPad],[bx+bw-studPad,by+bh-studPad]];
   for(const[cx,cy]of corners){
     const sg=ctx.createRadialGradient(cx-0.5,cy-0.5,0,cx,cy,studR);
@@ -539,48 +514,90 @@ function drawBoard(){
     ctx.strokeStyle='rgba(0,0,0,0.25)';ctx.lineWidth=0.8;ctx.beginPath();ctx.arc(cx,cy,studR-0.3,0,Math.PI*2);ctx.stroke();
   }
 }
-function drawAllHoles(){
-  if(_holeCache.length===0) return;
+// ── 螺丝本体预渲染缓存（8色，启动后异步生成截图为Image） ──
+const _screwBodyCache={},SCREW_REF_SIZE=48;
+function _preRenderScrewBodies(){
+  let oc;
+  try{oc=wx.createOffscreenCanvas({type:'2d',width:SCREW_REF_SIZE*2,height:SCREW_REF_SIZE*2})}catch(e){console.log('[unscrew] offscreen not supported, skip cache');return;}
+  const ox=oc.getContext('2d'),sr=SCREW_REF_SIZE;
+  for(const c of COLORS){
+    ox.clearRect(0,0,sr*2,sr*2);
+    const cx=sr,cy=sr;
+    ox.save();ox.shadowColor='rgba(0,0,0,0.25)';ox.shadowBlur=sr*0.25;ox.shadowOffsetY=sr*0.08;
+    ox.beginPath();ox.arc(cx,cy+sr*0.08,sr,0,Math.PI*2);ox.fillStyle='rgba(0,0,0,0.25)';ox.fill();ox.restore();
+    const gx=cx-sr*0.30,gy=cy-sr*0.30,gR=sr*1.84;
+    const g=ox.createRadialGradient(gx,gy,0,gx,gy,gR);
+    g.addColorStop(0,c.light);g.addColorStop(0.5,c.hex);g.addColorStop(1,shadeColor(c.hex,-30));
+    ox.beginPath();ox.arc(cx,cy,sr,0,Math.PI*2);ox.fillStyle=g;ox.fill();
+    ox.save();ox.beginPath();ox.arc(cx,cy,sr,0,Math.PI*2);ox.clip();
+    const igY=cy-sr,igR=sr*0.22;
+    const ig=ox.createLinearGradient(0,igY,0,igY+igR);
+    ig.addColorStop(0,'rgba(255,255,255,0.35)');ig.addColorStop(0.1,'rgba(255,255,255,0.28)');
+    ig.addColorStop(0.25,'rgba(255,255,255,0.10)');ig.addColorStop(0.55,'rgba(255,255,255,0.02)');
+    ig.addColorStop(1,'rgba(255,255,255,0)');
+    ox.fillStyle=ig;ox.fillRect(0,igY,sr*2,igR);
+    const bx2=cx-sr*0.34,by2=cy-sr*0.52,brx=sr*0.30,bry=sr*0.24;
+    ox.fillStyle='rgba(255,255,255,0.45)';
+    try{ox.beginPath();ox.ellipse(bx2,by2,brx,bry,-0.262,0,Math.PI*2);ox.fill()}catch(e){ox.beginPath();ox.arc(bx2,by2,brx,0,Math.PI*2);ox.fill()}
+    ox.restore();
+    wx.canvasToTempFilePath({canvas:oc,x:0,y:0,width:sr*2,height:sr*2,
+      success(res){
+        const img=wx.createImage();img.src=res.tempFilePath;
+        img.onload=()=>{_screwBodyCache[c.name]=img};
+      }
+    });
+  }
+}
+function drawOneScrew(s, isDying, dyingLife){
   const mapX=v=>v/100*(BOARD_W-8)+BOARD_X+4,mapY=v=>v/100*(BOARD_H-8)+BOARD_Y+4,mapR=v=>v*Math.min(BOARD_W,BOARD_H)/100/2;
-  for(const s of _holeCache){
-    const hx=mapX(s.x),hy=mapY(s.y),hr=mapR(s.size);
+  // 孔
+  if(s.removed && !isDying){
+    const hx=mapX(s.x),hy=mapY(s.y),hr=mapR(s.size); // 孔=螺丝等大
     const hg=ctx.createRadialGradient(hx-2,hy-2,0,hx,hy,hr);
     hg.addColorStop(0,'#1c1208');hg.addColorStop(0.5,'#0a0502');hg.addColorStop(1,'#000');
     ctx.fillStyle=hg;ctx.beginPath();ctx.arc(hx,hy,hr,0,Math.PI*2);ctx.fill();
+    return;
   }
-}
-function _rebuildHoleCache(){_holeCache=screws.filter(s=>s.removed)}
-function drawOneScrew(s, isDying, dyingLife){
-  const mapX=v=>v/100*(BOARD_W-8)+BOARD_X+4,mapY=v=>v/100*(BOARD_H-8)+BOARD_Y+4,mapR=v=>v*Math.min(BOARD_W,BOARD_H)/100/2;
-  if(s.removed && !isDying) return;
   const sx=mapX(s.x),sy=mapY(s.y),sr=mapR(s.size);
-  ctx.globalAlpha = isDying ? dyingLife : (s.blocked ? Math.max(0.25, 1 - s.blockedPct * 0.85) : 1);
-  // 贴预渲染螺丝本体（含阴影+渐变+高光），按实际尺寸缩放
-  const body=_screwBodyCache[s.color.name];
-  if(body){
-    const scale=sr/SCREW_REF_SIZE;
-    const w=sr*2,h=sr*2;
-    ctx.drawImage(body,sx-sr,sy-sr,w,h);
+  ctx.globalAlpha = isDying ? dyingLife : (s.blocked ? 0.4 : 1); // 被挡更明显(0.35→0.4)
+  const cached=_screwBodyCache[s.color.name];
+  if(cached){
+    // 缓存命中：直接贴图（外阴影+主体渐变+内高光+镜面高光已在截图中）
+    ctx.drawImage(cached, sx-sr, sy-sr, sr*2, sr*2);
+    drawFace(ctx, s.color.face, sx, sy, sr);
   }else{
-    // 回退：内联渲染（首帧预渲染未完成时）
-    ctx.save();ctx.shadowColor='rgba(0,0,0,0.25)';ctx.shadowBlur=12;ctx.shadowOffsetY=4;
-    ctx.beginPath();ctx.arc(sx,sy+4,sr,0,Math.PI*2);ctx.fillStyle='rgba(0,0,0,0.25)';ctx.fill();ctx.restore();
-    const gx=sx-sr*0.30,gy=sy-sr*0.30,gR=sr*1.84;
-    const g=ctx.createRadialGradient(gx,gy,0,gx,gy,gR);
-    g.addColorStop(0,s.color.light);g.addColorStop(0.5,s.color.hex);g.addColorStop(1,shadeColor(s.color.hex,-30));
-    ctx.beginPath();ctx.arc(sx,sy,sr,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
-    ctx.save();ctx.beginPath();ctx.arc(sx,sy,sr,0,Math.PI*2);ctx.clip();
-    const igY=sy-sr,igR=sr*0.22,ig=ctx.createLinearGradient(0,igY,0,igY+igR);
-    ig.addColorStop(0,'rgba(255,255,255,0.35)');ig.addColorStop(0.1,'rgba(255,255,255,0.28)');
-    ig.addColorStop(0.25,'rgba(255,255,255,0.10)');ig.addColorStop(0.55,'rgba(255,255,255,0.02)');
-    ig.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=ig;ctx.fillRect(sx-sr,igY,sr*2,igR);
-    const bx=sx-sr*0.34,by2=sy-sr*0.52,brx=sr*0.30,bry=sr*0.24;
-    ctx.fillStyle='rgba(255,255,255,0.45)';
-    try{ctx.beginPath();ctx.ellipse(bx,by2,brx,bry,-0.262,0,Math.PI*2);ctx.fill()}catch(e){ctx.beginPath();ctx.arc(bx,by2,brx,0,Math.PI*2);ctx.fill()}
-    ctx.restore();
-  }
-  // 面孔（始终在主Canvas上画，因为每颗螺丝面孔不同）
+  // ═══ 1. 外阴影 box-shadow: rgba(0,0,0,0.25) 0 4px 12px ═══
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,0.25)';ctx.shadowBlur=12;ctx.shadowOffsetY=4;
+  ctx.beginPath();ctx.arc(sx,sy+4,sr,0,Math.PI*2);
+  ctx.fillStyle='rgba(0,0,0,0.25)';ctx.fill();
+  ctx.restore();
+  // ═══ 2. 主体渐变 ═══
+  const gx2=sx-sr*0.30,gy2=sy-sr*0.30;
+  const gR2=sr*1.84;
+  const g2=ctx.createRadialGradient(gx2,gy2,0,gx2,gy2,gR2);
+  g2.addColorStop(0,s.color.light);g2.addColorStop(0.5,s.color.hex);g2.addColorStop(1,shadeColor(s.color.hex,-30));
+  ctx.beginPath();ctx.arc(sx,sy,sr,0,Math.PI*2);ctx.fillStyle=g2;ctx.fill();
+  // ═══ 3. 内高光 ═══
+  const igY2=sy-sr,igR2=sr*0.22;
+  const ig2=ctx.createLinearGradient(0,igY2,0,igY2+igR2);
+  ig2.addColorStop(0,'rgba(255,255,255,0.35)');
+  ig2.addColorStop(0.1,'rgba(255,255,255,0.28)');
+  ig2.addColorStop(0.25,'rgba(255,255,255,0.10)');
+  ig2.addColorStop(0.55,'rgba(255,255,255,0.02)');
+  ig2.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.save();ctx.beginPath();ctx.arc(sx,sy,sr,0,Math.PI*2);ctx.clip();
+  ctx.fillStyle=ig2;ctx.fillRect(sx-sr,igY2,sr*2,igR2);ctx.restore();
+  // ═══ 4. ::before 左上镜面高光 ═══
+  const bx3=sx-sr*0.34,by3=sy-sr*0.52,brx3=sr*0.30,bry3=sr*0.24;
+  ctx.save();ctx.beginPath();ctx.arc(sx,sy,sr,0,Math.PI*2);ctx.clip();
+  ctx.fillStyle='rgba(255,255,255,0.45)';
+  try{ctx.beginPath();ctx.ellipse(bx3,by3,brx3,bry3,-0.262,0,Math.PI*2);ctx.fill()}catch(e){
+    ctx.beginPath();ctx.arc(bx3,by3,brx3,0,Math.PI*2);ctx.fill()}
+  ctx.restore();
+  // ═══ 5. ::after 面孔 ═══
   drawFace(ctx, s.color.face, sx, sy, sr);
+  }
   ctx.globalAlpha=1;
 }
 function drawSlots(){
@@ -844,33 +861,25 @@ function drawUI(){
     ctx.fillStyle='rgba(0,0,0,0.7)';ctx.beginPath();ctx.roundRect(W/2-tw/2,H/2-18,tw,36,18);ctx.fill();
     ctx.font='14px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(toastMsg,W/2,H/2);
   }
-  // ── 暂停遮罩 + 面板 ──
+  // 暂停遮罩 + 面板
   if(paused){
     ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,TOP_BAR_H,W,H-TOP_BAR_H);
-    var pw2=Math.min(280,W*0.78), ph2=190, px2=(W-pw2)/2, py2=H/2-ph2/2-20;
-    ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=36;ctx.shadowOffsetY=10;
-    ctx.fillStyle='#141d2a';ctx.beginPath();ctx.roundRect(px2,py2,pw2,ph2,20);ctx.fill();
-    ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+    const ppw=Math.min(260,W*0.7), pph=170, ppx=(W-ppw)/2, ppy=H/2-pph/2-20;
+    _s();ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=28;ctx.shadowOffsetY=8;
+    ctx.fillStyle='#1a2332';ctx.beginPath();ctx.roundRect(ppx,ppy,ppw,pph,16);ctx.fill();_r();
     ctx.strokeStyle='rgba(255,255,255,0.08)';ctx.lineWidth=1;
-    ctx.beginPath();ctx.roundRect(px2,py2,pw2,ph2,20);ctx.stroke();
-    ctx.font='bold 22px sans-serif';ctx.fillStyle='#e2e8f0';ctx.textAlign='center';
-    ctx.fillText('⏸ 游戏暂停',W/2, py2+52);
-    var pbtnW=pw2-48, pbtnH=44, pbtnY=py2+78, pbtnX=px2+24;
+    ctx.beginPath();ctx.roundRect(ppx,ppy,ppw,pph,16);ctx.stroke();
+    ctx.font='bold 20px sans-serif';ctx.fillStyle='#e2e8f0';ctx.textAlign='center';
+    ctx.fillText('⏸ 游戏暂停',W/2, ppy+44);
     // 继续按钮
-    ctx.fillStyle='#3b82f6';ctx.beginPath();ctx.roundRect(pbtnX,pbtnY,pbtnW,pbtnH,pbtnH/2);ctx.fill();
-    ctx.font='bold 16px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText('▶ 继续游戏',W/2, pbtnY+pbtnH/2);
-    // 重新开始按钮
-    var pbtnY2=pbtnY+pbtnH+10;
-    ctx.fillStyle='rgba(255,255,255,0.06)';ctx.beginPath();ctx.roundRect(pbtnX,pbtnY2,pbtnW,pbtnH,pbtnH/2);ctx.fill();
-    ctx.strokeStyle='rgba(255,255,255,0.10)';ctx.lineWidth=1;
-    ctx.beginPath();ctx.roundRect(pbtnX,pbtnY2,pbtnW,pbtnH,pbtnH/2);ctx.stroke();
-    ctx.font='15px sans-serif';ctx.fillStyle='#94a3b8';ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText('🔄 重新开始',W/2, pbtnY2+pbtnH/2);
-    pauseContinueBB={x:pbtnX,y:pbtnY,w:pbtnW,h:pbtnH};
-    pauseRestartBB={x:pbtnX,y:pbtnY2,w:pbtnW,h:pbtnH};
-    pausePanelBB={x:px2,y:py2,w:pw2,h:ph2};
+    const bW=ppw-40, bH=42, bX=ppx+20, bY=ppy+70;
+    const bg=ctx.createLinearGradient(0,bY,0,bY+bH);
+    bg.addColorStop(0,'#3b82f6');bg.addColorStop(1,'#2563eb');
+    ctx.fillStyle=bg;ctx.beginPath();ctx.roundRect(bX,bY,bW,bH,bH/2);ctx.fill();
+    ctx.font='bold 15px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('▶ 继续游戏',W/2, bY+bH/2);
     ctx.textBaseline='alphabetic';
+    pauseBtnBB={x:bX,y:bY,w:bW,h:bH};
   }
 }
 function drawOverlays(){
@@ -1219,22 +1228,14 @@ function render(){
   try{
     if(boardShake>0){ctx.save();ctx.translate(Math.sin(Date.now()*0.05)*boardShake*8,Math.cos(Date.now()*0.07)*boardShake*6)}
     safe('bg',()=>drawBoard());
-    // 所有孔在板上统一绘制，螺丝叠在上面自然挡住
-    safe('holes',()=>drawAllHoles());
-    // 螺丝绘制（无死亡动画时直接用缓存顺序，避免每帧合并排序）
-    safe('screws',()=>{
-      if(dyingScrews.length===0){
-        for(const s of _screwDrawOrder)if(!s.removed)drawOneScrew(s,false,1);
-      }else{
-        const items=[];
-        for(const s of _screwDrawOrder) items.push({t:'s',s,layer:s.layer});
-        for(const d of dyingScrews) items.push({t:'d',d,layer:d.layer||0});
-        items.sort((a,b)=>a.layer-b.layer||(a.t==='d'?0:1)-(b.t==='d'?0:1)||(a.t==='s'?a.s.id:a.d.id)-(b.t==='s'?b.s.id:b.d.id));
-        for(const it of items){if(it.t==='s')drawOneScrew(it.s,false,1);else drawOneScrew(it.d,true,it.d.life)}
-      }
-    });
+    // 按 layer 从小到大画（底层先画，顶层后画）
+    // 孔先画(最底) → 透明被挡 → 实体螺丝(最上)
+    const sorted=[...screws].sort((a,b)=>(a.removed?0:1)-(b.removed?0:1)||(b.blocked?1:0)-(a.blocked?1:0)||a.layer-b.layer||a.id-b.id);
+    safe('screws',()=>{for(const s of sorted){drawOneScrew(s,false,1)}});
     // Peek 高亮
     safe('peek',()=>{for(const id of peekTargets){const s=screws.find(x=>x.id===id);if(s){const sx=s.x/100*(BOARD_W-8)+BOARD_X+4,sy=s.y/100*(BOARD_H-8)+BOARD_Y+4,sr=s.size*Math.min(BOARD_W,BOARD_H)/100/2;ctx.save();ctx.strokeStyle=s.color.hex;ctx.shadowColor=s.color.hex;ctx.shadowBlur=14+Math.sin(Date.now()*0.005)*6;ctx.lineWidth=2;ctx.beginPath();ctx.arc(sx,sy,sr+3,0,Math.PI*2);ctx.stroke();ctx.restore()}}});
+    // 死亡动画螺丝
+    safe('dying',()=>{for(const d of dyingScrews){drawOneScrew(d,true,d.life)}});
     safe('particles',()=>drawParticles());
     safe('slots',()=>drawSlots());
     safe('props',()=>drawPropsBar());
@@ -1340,19 +1341,13 @@ function handleTouch(tx,ty){
     if(tb.id==='leaderboard'){loadLB();showLB=!showLB;return}
     if(tb.id==='user'){const n=Date.now();if(n-_loginDebounce<400)return;_loginDebounce=n;showLoginOverlay=!showLoginOverlay;return}
   }}
-  // ── 暂停面板点击处理 ──
-  if(paused){
-    if(pauseContinueBB&&tx>=pauseContinueBB.x&&tx<=pauseContinueBB.x+pauseContinueBB.w&&ty>=pauseContinueBB.y&&ty<=pauseContinueBB.y+pauseContinueBB.h){paused=false;return}
-    if(pauseRestartBB&&tx>=pauseRestartBB.x&&tx<=pauseRestartBB.x+pauseRestartBB.w&&ty>=pauseRestartBB.y&&ty<=pauseRestartBB.y+pauseRestartBB.h){paused=false;restartLevel();return}
-    if(pausePanelBB&&!(tx>=pausePanelBB.x&&tx<=pausePanelBB.x+pausePanelBB.w&&ty>=pausePanelBB.y&&ty<=pausePanelBB.y+pausePanelBB.h)){paused=false;return}
-    return;
-  }
+  if(paused&&pauseBtnBB&&tx>=pauseBtnBB.x&&tx<=pauseBtnBB.x+pauseBtnBB.w&&ty>=pauseBtnBB.y&&ty<=pauseBtnBB.y+pauseBtnBB.h){paused=false;return}
   if(processing||paused)return;
   for(const pb of propButtons){if(tx>=pb.x&&tx<=pb.x+pb.w&&ty>=pb.y&&ty<=pb.y+pb.h){useProp(pb.id);return}}
   const sorted=[...screws].sort((a,b)=>b.layer-a.layer);
   for(const s of sorted){if(s.removed||s.blocked)continue;const sx=s.x/100*(BOARD_W-8)+BOARD_X+4,sy=s.y/100*(BOARD_H-8)+BOARD_Y+4,sr=s.size*Math.min(BOARD_W,BOARD_H)/100/2;if(Math.hypot(tx-sx,ty-sy)<sr*0.95){processClick(s);return}}
 }
-wx.onTouchStart(()=>{_lastTap=Date.now()});wx.onTouchEnd(e=>{handleTouch(e.changedTouches[0].clientX,e.changedTouches[0].clientY);_dirty=true});
+wx.onTouchStart(()=>{_lastTap=Date.now()});wx.onTouchEnd(e=>{handleTouch(e.changedTouches[0].clientX,e.changedTouches[0].clientY)});
 try{canvas.addEventListener('click',e=>{if(Date.now()-_lastTap<100)return;handleTouch(e.clientX,e.clientY)});console.log('[unscrew] mouse fallback added')}catch(e){}
 // ── 音效 ──
 let audioCtx=null,soundOn=true;
@@ -1372,10 +1367,8 @@ function loop(){
   for(let i=dyingScrews.length-1;i>=0;i--){dyingScrews[i].life-=0.06;if(dyingScrews[i].life<=0)dyingScrews.splice(i,1)}
   for(let i=comboPops.length-1;i>=0;i--){comboPops[i].life-=0.025;comboPops[i].y-=1.5;if(comboPops[i].life<=0)comboPops.splice(i,1)}
   for(let i=slotAnims.length-1;i>=0;i--){const a=slotAnims[i];if(Date.now()-a.startTime>a.duration)slotAnims.splice(i,1)}
-  if(boardShake>0){boardShake-=0.1;_dirty=true}
-  const hasAnim=particles.length>0||dyingScrews.length>0||comboPops.length>0||slotAnims.length>0||peekTargets.length>0||boardShake>0;
-  if(_dirty||hasAnim){_dirty=false;render()}
-  requestAnimationFrame(loop)
+  if(boardShake>0)boardShake-=0.1;
+  render();requestAnimationFrame(loop)
 }
 // ── 启动 ──
-try{console.log('[unscrew] W=',W,'H=',H,'board=',BOARD_W,'x',BOARD_H);loadGame();loadSkin();loadCheckin();loadNick();loadLB();try{tutDone=!!wx.getStorageSync('tut_done')}catch(e){}try{soundOn=wx.getStorageSync('sound')!=='0'}catch(e){}try{bgmOn=wx.getStorageSync('bgm')==='1'}catch(e){}initAd();generateLevel();requestAnimationFrame(loop);setTimeout(()=>{try{_preRenderScrewBodies()}catch(e){console.log('[unscrew] screw cache:',e.message)}},200);console.log('[unscrew] started');if(!tutDone)setTimeout(()=>{showTutorialOverlay=true;tutIdx=0},400)}catch(e){console.error('[unscrew] init error:',e.message,e.stack)}
+try{console.log('[unscrew] W=',W,'H=',H,'board=',BOARD_W,'x',BOARD_H);loadGame();loadSkin();loadCheckin();loadNick();loadLB();try{tutDone=!!wx.getStorageSync('tut_done')}catch(e){}try{soundOn=wx.getStorageSync('sound')!=='0'}catch(e){}try{bgmOn=wx.getStorageSync('bgm')==='1'}catch(e){}initAd();generateLevel();requestAnimationFrame(loop);setTimeout(()=>{try{_preRenderScrewBodies()}catch(e){console.log('[unscrew] cache:',e.message)}},200);console.log('[unscrew] started');if(!tutDone)setTimeout(()=>{showTutorialOverlay=true;tutIdx=0},400)}catch(e){console.error('[unscrew] init error:',e.message,e.stack)}
