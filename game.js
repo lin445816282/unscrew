@@ -354,13 +354,17 @@ function showWxLoginBtn(){
             }else{
               try{wx.getUserInfo({success:r=>{const u=r.userInfo;if(u){setNick(u.nickName||'微信用户',u.avatarUrl||'')}},fail:()=>{}})}catch(e){}
             }
+            // 登录成功：关闭弹窗并销毁按钮
+            showLoginOverlay=false;hideWxLoginBtn()
           }else{
             console.log('[login] cancelled or failed:',res?res.errMsg:'no response');
+            // 取消/拒绝：只隐藏按钮不销毁，下次还能用同一个实例弹授权窗
+            showLoginOverlay=false;
+            if(userInfoBtn){try{userInfoBtn.hide()}catch(e){}}
           }
         }catch(e){
           console.log('[login] onTap error:',e);
         }
-        showLoginOverlay=false;hideWxLoginBtn()
       });
     }catch(e){console.log('[login] create failed:',e)}
   }
@@ -1377,7 +1381,7 @@ function handleTouch(tx,ty){
       if(privacyPolicyBB&&tx>=privacyPolicyBB.x&&tx<=privacyPolicyBB.x+privacyPolicyBB.w&&ty>=privacyPolicyBB.y&&ty<=privacyPolicyBB.y+privacyPolicyBB.h){showPrivacyText='privacy';return}
       if(privacyAgreeBB&&privacyCheckOn&&tx>=privacyAgreeBB.x&&tx<=privacyAgreeBB.x+privacyAgreeBB.w&&ty>=privacyAgreeBB.y&&ty<=privacyAgreeBB.y+privacyAgreeBB.h){privacyAgreed=true;try{wx.setStorageSync('privacy',1)}catch(e){};return}
     }
-    if(loginCloseBB&&tx>=loginCloseBB.x&&tx<=loginCloseBB.x+loginCloseBB.w&&ty>=loginCloseBB.y&&ty<=loginCloseBB.y+loginCloseBB.h){showLoginOverlay=false;privacyCheckOn=false;hideWxLoginBtn();return}
+    if(loginCloseBB&&tx>=loginCloseBB.x&&tx<=loginCloseBB.x+loginCloseBB.w&&ty>=loginCloseBB.y&&ty<=loginCloseBB.y+loginCloseBB.h){showLoginOverlay=false;privacyCheckOn=false;if(userInfoBtn){try{userInfoBtn.hide()}catch(e){}}return}
     if(loginBtnBB&&tx>=loginBtnBB.x&&tx<=loginBtnBB.x+loginBtnBB.w&&ty>=loginBtnBB.y&&ty<=loginBtnBB.y+loginBtnBB.h){
       if(loginBtnBB.id==='logout'){logoutUser();showLoginOverlay=false;hideWxLoginBtn()}
       return;}
