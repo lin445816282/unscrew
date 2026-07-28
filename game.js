@@ -1829,17 +1829,10 @@ function drawOverlays(){
       ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(guestX,guestY,guestW,guestH,17);ctx.stroke();
       _s();ctx.font='12px sans-serif';ctx.fillStyle='#64748b';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('跳过登录，随便玩玩',guestX+guestW/2,guestY+guestH/2);_r();
       loginBtnBB={id:'guest',x:guestX,y:guestY,w:guestW,h:guestH};
-      // 🔧 Canvas 登录按钮（测试端原生按钮可能不可用）
-      if(privacyCheckOn||privacyAgreed){
-        var wxW=140,wxH=42,wxX=W/2-wxW/2,wxY=loginBtnY;
-        ctx.fillStyle='#07c160';ctx.beginPath();ctx.roundRect(wxX,wxY,wxW,wxH,19);ctx.fill();
-        _s();ctx.font='bold 15px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('微信登录',W/2,wxY+wxH/2);_r();
-        loginWxBB={id:'wxLogin',x:wxX,y:wxY,w:wxW,h:wxH};
-      }
     }
     loginCloseBB=_drawClose(mx+mw-32,my);
-    // Canvas 按钮替代原生（全平台兼容）
-    if(!nickname&&privacyAgreed&&!userInfoBtn){} // 不创建原生按钮
+    // 创建原生微信授权按钮，拿真实昵称头像
+    if(!nickname&&privacyAgreed){showWxLoginBtn()}
     return;
   }
   // 🔧 特效菜单
@@ -2020,30 +2013,6 @@ function handleTouch(tx,ty){
     if(loginBtnBB&&tx>=loginBtnBB.x&&tx<=loginBtnBB.x+loginBtnBB.w&&ty>=loginBtnBB.y&&ty<=loginBtnBB.y+loginBtnBB.h){
       if(loginBtnBB.id==='logout'){logoutUser();showLoginOverlay=false;hideWxLoginBtn()}
       if(loginBtnBB.id==='guest'){showLoginOverlay=false;privacyCheckOn=false;privacyAgreed=false;console.log('[unscrew] guest mode')}
-      return;}
-    if(loginWxBB&&tx>=loginWxBB.x&&tx<=loginWxBB.x+loginWxBB.w&&ty>=loginWxBB.y&&ty<=loginWxBB.y+loginWxBB.h){
-      if(loginInProgress)return;
-      loginInProgress=true;
-      // 先 login 拿 code，再 getUserInfo 拿昵称头像
-      wx.login({success:function(loginRes){
-        if(!loginRes.code){showToast('登录失败');loginInProgress=false;return}
-        // 尝试获取用户信息
-        wx.getUserInfo({success:function(infoRes){
-          const u=infoRes.userInfo;
-          setNick(u.nickName||'微信用户',u.avatarUrl||'');
-          showToast('欢迎 '+nickname);
-          showLoginOverlay=false;
-          loadGame();
-          loginInProgress=false;
-        },fail:function(){
-          // getUserInfo 失败，用 login code 兜底
-          setNick('微信用户','');
-          showToast('欢迎 微信用户');
-          showLoginOverlay=false;
-          loadGame();
-          loginInProgress=false;
-        }});
-      },fail:function(){showToast('登录失败');loginInProgress=false}});
       return;}
     return;
   }
