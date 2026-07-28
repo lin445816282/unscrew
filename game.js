@@ -538,18 +538,37 @@ function generateShareCard(){showShareOverlay=true;showToast('📤 用微信分�
 // ── 排行榜 ──
 let showLB=false, lbData=[], lbPeriod='all', _fromWinOverlay=false;
 function loadLB(){
+  function _mergeLocal(){
+    try{
+      var locals=JSON.parse(wx.getStorageSync('lb_local')||'[]');
+      if(locals.length>0){
+        locals.forEach(function(l){lbData.push(l)});
+        lbData.sort(function(a,b){return b.score-a.score});
+      }
+    }catch(e){}
+  }
   wx.request({url:'https://www.ct256.cn/api/unscrew/leaderboard',method:'GET',
     success:function(rsp){if(rsp.data&&rsp.data.ok){lbData=rsp.data.list.map(function(i){
       var dt=i.created_at?i.created_at.slice(0,10):'';var parts=dt.split('-');var normDate=parts[0]+'-'+(+parts[1])+'-'+(+parts[2]);
       return{nick:i.nick,score:i.score,level:i.level,date:normDate};
-    })};lbData.sort(function(a,b){return b.score-a.score})},
-    fail:function(){try{lbData=JSON.parse(wx.getStorageSync('lb')||'[]')}catch(e){lbData=[]}}
+    })};lbData.sort(function(a,b){return b.score-a.score});_mergeLocal()},
+    fail:function(){try{lbData=JSON.parse(wx.getStorageSync('lb')||'[]')}catch(e){lbData=[]};_mergeLocal()}
   })
 }
 function submitLB(){
+  const nick=nickname||'萌糖玩家';
+  const entry={nick:nick,score:score,level:level,stars:winStars,efficiency:winEfficiency,date:getToday()};
+  // 本地兜底：服务器同步失败也能在本地看到自己的记录
+  try{
+    var local=JSON.parse(wx.getStorageSync('lb_local')||'[]');
+    // 保留最近20条本地记录
+    local.push(entry);
+    if(local.length>20)local=local.slice(-20);
+    wx.setStorageSync('lb_local',JSON.stringify(local));
+  }catch(e){}
   wx.login({success:function(res){if(!res.code)return;
     wx.request({url:'https://www.ct256.cn/api/unscrew/submit',method:'POST',
-      data:{code:res.code,nick:nickname||'萌糖玩家',score:score,level:level,stars:winStars,efficiency:winEfficiency},
+      data:{code:res.code,nick:nick,score:score,level:level,stars:winStars,efficiency:winEfficiency},
       success:function(rsp){if(rsp.data&&rsp.data.ok){console.log('LB submitted')}loadLB()},
       fail:function(){loadLB()}
     })
