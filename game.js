@@ -378,6 +378,8 @@ function loadGame(){
             var cl=getCleared(),needRebuild=true;
             for(var ci=1;ci<=d.level;ci++){if(cl.indexOf(ci)<0){needRebuild=true;break}else{needRebuild=false}}
             if(needRebuild){var nc=[];for(var ci=1;ci<=d.level;ci++)nc.push(ci);wx.setStorageSync('cleared',JSON.stringify(nc))}
+            // 云端关卡高于当前，重新生成
+            if(d.level>1){generateLevel()}
             console.log('[unscrew] cloud load lv='+d.level+' sc='+d.score)
           }
         },fail:function(){}
@@ -638,6 +640,8 @@ function showWxLoginBtn(){
           }else{
             try{wx.getUserInfo({success:r=>{const u=r.userInfo;if(u){setNick(u.nickName||'微信用户',u.avatarUrl||'')}},fail:()=>{}})}catch(e){}
           }
+          // 拉取云端存档，同步关卡进度
+          loadGame();
           // 不要在这里 destroy 按钮（在自身 onTap 里销毁会闪退），只隐藏
           showLoginOverlay=false;
           if(userInfoBtn){try{userInfoBtn.hide()}catch(e){}}
