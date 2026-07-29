@@ -641,54 +641,40 @@ const USER_AGREEMENT=`用户服务协议
 
 开始使用即表示您同意本协议的全部条款。`;
 let nickname='', avatarUrl='', showLoginOverlay=false, userInfoBtn=null, privacyAgreed=false, showPrivacyText='', loginInProgress=false;
-var loginBtnY=0;
+var loginBtnY=0, _lastLoginBtnY=-1;
 function loadNick(){try{nickname=wx.getStorageSync('nick')||'';avatarUrl=wx.getStorageSync('avatar')||''}catch(e){}}
 function setNick(n,a){nickname=n;avatarUrl=a||'';try{wx.setStorageSync('nick',n);if(a)wx.setStorageSync('avatar',a)}catch(e){}}
 function logoutUser(){nickname='';avatarUrl='';setNick('','');level=1;score=0;coins=30;props={undo:1,bomb:0,peek:0,lightning:0,shuffle:0};try{wx.removeStorageSync('u_lv');wx.removeStorageSync('u_sc');wx.removeStorageSync('u_co');wx.removeStorageSync('u_pr');wx.removeStorageSync('checkin');wx.removeStorageSync('daily_done');wx.removeStorageSync('cleared')}catch(e){};loginInProgress=false;showLvlPicker=false;showSkinPicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showWinOverlay=false;showLoseOverlay=false;showPrivacyText='';saveGame();showToast('已退出，数据已重置')}
-let _wxBtnTried=false; // 防重复创建
-function showWxLoginBtn(){
-  console.log('[login] showWxLoginBtn entered, loginInProgress='+loginInProgress+' userInfoBtn='+!!userInfoBtn+' _wxBtnTried='+_wxBtnTried)
-  if(loginInProgress)return;
-  if(userInfoBtn){
-    console.log('[login] calling userInfoBtn.show()')
-    try{userInfoBtn.show()}catch(e){console.log('[login] show err:',e)}
-    return;
-  }
-  if(_wxBtnTried)return; // 创建失败过，不再重试
-  _wxBtnTried=true;
+// ═══════ 登录按钮：创建一次，永不销毁，只 hide/show ═══════
+function _createLoginBtn(){
+  if(userInfoBtn)return; // 已存在
   try{
-    console.log('[login] creating button at loginBtnY='+loginBtnY)
+    console.log('[login] creating button (once)')
     userInfoBtn=wx.createUserInfoButton({type:'text',text:'微信一键登录',
-      style:{left:W/2-70,top:loginBtnY||(H/2+65),width:140,height:42,lineHeight:42,
+      style:{left:W/2-70,top:H/2+65,width:140,height:42,lineHeight:42,
         backgroundColor:'#07c160',color:'#ffffff',textAlign:'center',fontSize:15,borderRadius:21}});
-    console.log('[login] button created:',!!userInfoBtn)
+    userInfoBtn.hide(); // 初始隐藏
     userInfoBtn.onTap(res=>{
       if(loginInProgress)return;
       loginInProgress=true;
       try{
         console.log('[login] onTap:',JSON.stringify(res||{}));
-        const ok=res&&res.errMsg&&res.errMsg.indexOf(':ok')>-1;
+        var ok=res&&res.errMsg&&res.errMsg.indexOf(':ok')>-1;
         if(ok){
           if(res.rawData){
-            try{const u=JSON.parse(res.rawData);setNick(u.nickName||'微信用户',u.avatarUrl||'');showToast('欢迎 '+nickname)}catch(e){console.log('[login] rawData parse:',e)}
+            try{var u=JSON.parse(res.rawData);setNick(u.nickName||'微信用户',u.avatarUrl||'');showToast('欢迎 '+nickname)}catch(e){console.log('[login] rawData parse:',e)}
           }else if(res.userInfo){
             setNick(res.userInfo.nickName||'微信用户',res.userInfo.avatarUrl||'');showToast('欢迎 '+nickname);
           }else{
-            try{wx.getUserInfo({success:r=>{const u=r.userInfo;if(u){setNick(u.nickName||'微信用户',u.avatarUrl||'')}},fail:()=>{}})}catch(e){}
+            try{wx.getUserInfo({success:function(r){var u=r.userInfo;if(u){setNick(u.nickName||'微信用户',u.avatarUrl||'')}},fail:function(){}})}catch(e){}
           }
-          // 拉取云端存档，同步关卡进度
           loadGame();
-          // 不要在这里 destroy 按钮（在自身 onTap 里销毁会闪退），只隐藏
           showLoginOverlay=false;
-          if(userInfoBtn){try{userInfoBtn.hide()}catch(e){}}
+          hideWxLoginBtn();
         }else{
-          console.log('[login] cancelled or failed:',res?res.errMsg:'no response');
+          console.log('[login] cancelled:',res?res.errMsg:'no res');
           showToast('授权取消，请重试');
-          // 不关弹窗，延迟销毁旧按钮让下帧重建（onTap内直接destroy会闪退）
-          var _oldBtn=userInfoBtn;
-          setTimeout(function(){try{_oldBtn.destroy()}catch(e){}},100);
-          userInfoBtn=null;
-          _wxBtnTried=false;
+          // 不销毁! 按钮保持活跃，用户可再次点击
         }
         loginInProgress=false;
       }catch(e){
@@ -696,7 +682,18 @@ function showWxLoginBtn(){
         loginInProgress=false;
       }
     });
-  }catch(e){console.log('[login] create button error:',e);_wxBtnTried=false} // 失败后允许重试
+  }catch(e){console.log('[login] create btn error:',e)}
+}
+function showWxLoginBtn(){
+  if(loginInProgress)return;
+  _createLoginBtn(); // 确保存在
+  if(!userInfoBtn)return;
+  // 更新位置（loginBtnY 由渲染帧计算）
+  var targetY=loginBtnY||(H/2+65);
+  if(targetY!==_lastLoginBtnY){
+    try{userInfoBtn.style.top=targetY;_lastLoginBtnY=targetY}catch(e){}
+  }
+  try{userInfoBtn.show()}catch(e){console.log('[login] show err:',e)}
 }
 function hideWxLoginBtn(){if(userInfoBtn){try{userInfoBtn.hide()}catch(e){}}}
 // ── 背景音乐 ──
@@ -2068,7 +2065,7 @@ function handleTouch(tx,ty){
       if(privacyUserBB&&tx>=privacyUserBB.x&&tx<=privacyUserBB.x+privacyUserBB.w&&ty>=privacyUserBB.y&&ty<=privacyUserBB.y+privacyUserBB.h){showPrivacyText='user';return}
       if(privacyPolicyBB&&tx>=privacyPolicyBB.x&&tx<=privacyPolicyBB.x+privacyPolicyBB.w&&ty>=privacyPolicyBB.y&&ty<=privacyPolicyBB.y+privacyPolicyBB.h){showPrivacyText='privacy';return}
     }
-    if(loginCloseBB&&tx>=loginCloseBB.x&&tx<=loginCloseBB.x+loginCloseBB.w&&ty>=loginCloseBB.y&&ty<=loginCloseBB.y+loginCloseBB.h){showLoginOverlay=false;privacyCheckOn=false;privacyAgreed=false;_wxBtnTried=false;if(userInfoBtn){try{userInfoBtn.hide()}catch(e){}}return}
+    if(loginCloseBB&&tx>=loginCloseBB.x&&tx<=loginCloseBB.x+loginCloseBB.w&&ty>=loginCloseBB.y&&ty<=loginCloseBB.y+loginCloseBB.h){showLoginOverlay=false;privacyCheckOn=false;privacyAgreed=false;hideWxLoginBtn();return}
     if(loginBtnBB&&tx>=loginBtnBB.x&&tx<=loginBtnBB.x+loginBtnBB.w&&ty>=loginBtnBB.y&&ty<=loginBtnBB.y+loginBtnBB.h){
       if(loginBtnBB.id==='logout'){logoutUser();showLoginOverlay=false;hideWxLoginBtn()}
       if(loginBtnBB.id==='guest'){showLoginOverlay=false;privacyCheckOn=false;privacyAgreed=false;console.log('[unscrew] guest mode')}
@@ -2126,7 +2123,7 @@ function handleTouch(tx,ty){
     if(tb.id==='efxToggle'){efxMenuOpen=!efxMenuOpen;return}
     if(tb.id==='daily'){if(isDailyDone()){showToast('今日已挑战');return}else{startDailyChallenge();return}}
     if(tb.id==='leaderboard'){loadLB();showLB=!showLB;return}
-    if(tb.id==='user'){const n=Date.now();if(n-_loginDebounce<400){console.log('[login] user btn debounced');return};_loginDebounce=n;showLoginOverlay=!showLoginOverlay;console.log('[login] user btn: showLoginOverlay='+showLoginOverlay+' nickname='+nickname+' userInfoBtn='+!!userInfoBtn);if(showLoginOverlay){showLvlPicker=false;showSkinPicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showPrivacyText='';privacyAgreed=false;privacyCheckOn=false;loginInProgress=false;_wxBtnTried=false;if(userInfoBtn){try{userInfoBtn.destroy()}catch(e){};userInfoBtn=null}hideWxLoginBtn()}return}
+    if(tb.id==='user'){const n=Date.now();if(n-_loginDebounce<400){console.log('[login] user btn debounced');return};_loginDebounce=n;showLoginOverlay=!showLoginOverlay;console.log('[login] user btn: showLoginOverlay='+showLoginOverlay+' nickname='+nickname+' userInfoBtn='+!!userInfoBtn);if(showLoginOverlay){showLvlPicker=false;showSkinPicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showPrivacyText='';privacyAgreed=false;privacyCheckOn=false;loginInProgress=false;hideWxLoginBtn()}return}
   }}
   if(paused&&pauseBtnBB&&tx>=pauseBtnBB.x&&tx<=pauseBtnBB.x+pauseBtnBB.w&&ty>=pauseBtnBB.y&&ty<=pauseBtnBB.y+pauseBtnBB.h){paused=false;return}
   if(processing||paused)return;
@@ -2222,6 +2219,7 @@ try{clickSfxIdx=parseInt(wx.getStorageSync('sfx_idx'))||0}catch(e){}
 try{bgmOn=wx.getStorageSync('bgm')==='1'}catch(e){}
 try{initAd()}catch(e){console.warn('[unscrew] initAd failed:',e.message)}
 try{generateLevel()}catch(e){console.error('[unscrew] generateLevel failed:',e.message);ctx.fillStyle='#ef4444';ctx.fillRect(0,0,W,60);ctx.fillStyle='#fff';ctx.font='13px sans-serif';ctx.fillText('关卡生成失败: '+e.message,10,25);ctx.fillText('请检查数据后重试',10,45);return}
+_createLoginBtn(); // 预创建登录按钮，避免 create/destroy 导致 onTap 失灵
 requestAnimationFrame(loop);
 console.log('[unscrew] started');
 if(!tutDone){setTimeout(function(){showTutorialOverlay=true;tutIdx=0},400)}
