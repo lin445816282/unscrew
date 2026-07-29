@@ -641,7 +641,7 @@ const USER_AGREEMENT=`用户服务协议
 
 开始使用即表示您同意本协议的全部条款。`;
 let nickname='', avatarUrl='', showLoginOverlay=false, userInfoBtn=null, privacyAgreed=false, showPrivacyText='', loginInProgress=false;
-var loginBtnY=0, _lastLoginBtnY=-1;
+var loginBtnY=0, _lastLoginBtnY=-1, _loginTouchLog=0;
 function loadNick(){try{nickname=wx.getStorageSync('nick')||'';avatarUrl=wx.getStorageSync('avatar')||''}catch(e){}}
 function setNick(n,a){nickname=n;avatarUrl=a||'';try{wx.setStorageSync('nick',n);if(a)wx.setStorageSync('avatar',a)}catch(e){}}
 function logoutUser(){nickname='';avatarUrl='';setNick('','');level=1;score=0;coins=30;props={undo:1,bomb:0,peek:0,lightning:0,shuffle:0};try{wx.removeStorageSync('u_lv');wx.removeStorageSync('u_sc');wx.removeStorageSync('u_co');wx.removeStorageSync('u_pr');wx.removeStorageSync('checkin');wx.removeStorageSync('daily_done');wx.removeStorageSync('cleared')}catch(e){};loginInProgress=false;showLvlPicker=false;showSkinPicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showWinOverlay=false;showLoseOverlay=false;showPrivacyText='';saveGame();showToast('已退出，数据已重置')}
@@ -2079,7 +2079,6 @@ function handleTouch(tx,ty){
   }
   if(showLoginOverlay){
     // 🔴 调试：记录每次触摸
-    if(!_loginTouchLog){_loginTouchLog=0};
     _loginTouchLog++;
     if(_loginTouchLog%5===0)console.log('[login] touch #'+_loginTouchLog+' at ('+tx+','+ty+') loginBtnBB='+(loginBtnBB?loginBtnBB.id:'none')+' nickname='+!!nickname+' privacyAgreed='+privacyAgreed);
     // 隐私协议UI — 勾选即同意
