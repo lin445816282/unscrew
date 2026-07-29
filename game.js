@@ -358,8 +358,9 @@ function saveGame(){
       wx.request({url:'https://www.ct256.cn/neunav/api/unscrew/save',method:'POST',
         header:{'content-type':'application/json'},
         data:{code:res.code,nick:nickname,score:score,level:level,stars:0,efficiency:0},
-        success:function(rsp){console.log('[cloud] save ok lv='+level+' sc='+score,'rsp:',JSON.stringify(rsp.data).slice(0,300))},
-        fail:function(e){console.log('[cloud] save FAIL:',JSON.stringify(e))}
+        success:function(rsp){console.log('[cloud] save rsp:',JSON.stringify(rsp.data).slice(0,300));
+          if(rsp.data&&rsp.data.ok)console.log('[cloud] save ok lv='+level);else console.log('[cloud] save FAILED:',rsp.data)},
+        fail:function(e){console.log('[cloud] save NET FAIL:',JSON.stringify(e))}
       })
     },fail:function(e){console.log('[cloud] wx.login FAIL:',JSON.stringify(e))}})
   }catch(e){console.log('[cloud] save exception:',e)}
