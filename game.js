@@ -2085,21 +2085,34 @@ function handleTouch(tx,ty){
       console.log('[login] touch hit loginBtnBB id='+loginBtnBB.id+' tx='+tx+' ty='+ty);
       if(loginBtnBB.id==='logout'){logoutUser();showLoginOverlay=false;hideWxLoginBtn()}
       else if(loginBtnBB.id==='wxlogin'){
-        // 🎯 Canvas按钮：先弹toast确认触摸到达
-        console.log('[login] ⚡ canvas wxlogin HIT! tx='+tx+' ty='+ty);
-        showToast('点击已收到，正在授权...');
-        if(loginInProgress){console.log('[login] blocked');return;}
+        console.log('[login] ⚡ canvas wxlogin HIT!');
+        showToast('正在拉起授权...');
+        if(loginInProgress){return;}
         loginInProgress=true;
+        // 在手势上下文内创建原生按钮，确保onTap可靠触发
+        var targetY=loginBtnY||(H/2+65);
         try{
-          wx.getUserInfo({success:function(r){
-            console.log('[login] getUserInfo OK:',JSON.stringify(r).slice(0,200));
-            var u=r.userInfo;if(u){setNick(u.nickName||'微信用户',u.avatarUrl||'');showToast('欢迎 '+nickname)}
-            loadGame();showLoginOverlay=false;hideWxLoginBtn();loginInProgress=false;
-          },fail:function(err){
-            console.log('[login] getUserInfo FAIL:',JSON.stringify(err).slice(0,200));
-            showToast('授权失败：'+(err.errMsg||'未知错误'));loginInProgress=false;
-          }});
-        }catch(e){console.log('[login] EXCEPTION:',e);showToast('异常：'+e.message);loginInProgress=false;}
+          // 先销毁旧的
+          if(userInfoBtn){try{userInfoBtn.destroy()}catch(e){};userInfoBtn=null}
+          console.log('[login] creating native btn at y='+targetY);
+          userInfoBtn=wx.createUserInfoButton({type:'text',text:'微信一键登录',
+            style:{left:W/2-70,top:targetY,width:140,height:42,lineHeight:42,
+              backgroundColor:'#07c160',color:'#ffffff',textAlign:'center',fontSize:15,borderRadius:21}});
+          userInfoBtn.onTap(function(res){
+            console.log('[login] ⚡ native ONTAP:',JSON.stringify(res||{}).slice(0,200));
+            var ok=res&&res.errMsg&&res.errMsg.indexOf(':ok')>-1;
+            if(ok&&(res.rawData||res.userInfo)){
+              try{
+                if(res.rawData){var u=JSON.parse(res.rawData);setNick(u.nickName||'微信用户',u.avatarUrl||'')}
+                else if(res.userInfo){setNick(res.userInfo.nickName||'微信用户',res.userInfo.avatarUrl||'')}
+              }catch(e){}
+            }
+            loadGame();showLoginOverlay=false;
+            try{userInfoBtn.destroy()}catch(e){};userInfoBtn=null;
+            loginInProgress=false;
+            if(nickname)showToast('欢迎 '+nickname);
+          });
+        }catch(e){console.log('[login] create err:',e);showToast('授权失败');loginInProgress=false;}
       }
       else if(loginBtnBB.id==='guest'){showLoginOverlay=false;privacyCheckOn=false;privacyAgreed=false;console.log('[unscrew] guest mode')}
       return;}
