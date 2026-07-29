@@ -558,13 +558,23 @@ function loadLB(){
 function submitLB(){
   const nick=nickname||'萌糖玩家';
   const entry={nick:nick,score:score,level:level,stars:winStars,efficiency:winEfficiency,date:getToday()};
-  // 本地兜底：服务器同步失败也能在本地看到自己的记录
+  // 本地兜底：同用户只存最高分记录
   try{
     var local=JSON.parse(wx.getStorageSync('lb_local')||'[]');
-    // 保留最近20条本地记录
-    local.push(entry);
-    if(local.length>20)local=local.slice(-20);
-    wx.setStorageSync('lb_local',JSON.stringify(local));
+    var existIdx=-1;
+    for(var i=0;i<local.length;i++){
+      if(local[i].nick===nick){existIdx=i;break}
+    }
+    if(existIdx>=0){
+      // 已有记录，只有分数更高才替换
+      if(score>local[existIdx].score || (score===local[existIdx].score && level>local[existIdx].level)){
+        local[existIdx]=entry;
+        wx.setStorageSync('lb_local',JSON.stringify(local));
+      }
+    }else{
+      local.push(entry);
+      wx.setStorageSync('lb_local',JSON.stringify(local));
+    }
   }catch(e){}
   wx.login({success:function(res){if(!res.code)return;
     wx.request({url:'https://www.ct256.cn/api/unscrew/submit',method:'POST',
