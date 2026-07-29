@@ -646,20 +646,25 @@ function loadNick(){try{nickname=wx.getStorageSync('nick')||'';avatarUrl=wx.getS
 function setNick(n,a){nickname=n;avatarUrl=a||'';try{wx.setStorageSync('nick',n);if(a)wx.setStorageSync('avatar',a)}catch(e){}}
 function logoutUser(){nickname='';avatarUrl='';setNick('','');level=1;score=0;coins=30;props={undo:1,bomb:0,peek:0,lightning:0,shuffle:0};try{wx.removeStorageSync('u_lv');wx.removeStorageSync('u_sc');wx.removeStorageSync('u_co');wx.removeStorageSync('u_pr');wx.removeStorageSync('checkin');wx.removeStorageSync('daily_done');wx.removeStorageSync('cleared')}catch(e){};loginInProgress=false;showLvlPicker=false;showSkinPicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showWinOverlay=false;showLoseOverlay=false;showPrivacyText='';saveGame();showToast('已退出，数据已重置')}
 // ═══════ 登录按钮：创建一次，永不销毁，只 hide/show ═══════
+var _loginBtnDebug={created:false,shown:0,posY:0,lastTap:0};
 function _createLoginBtn(){
-  if(userInfoBtn)return; // 已存在
+  if(userInfoBtn)return;
   try{
-    console.log('[login] creating button (once)')
+    var x=W/2-70, y=H/2+65, w=140, h=42;
+    _loginBtnDebug={created:true, shown:0, posY:y, lastTap:0, x:x, y:y, w:w, h:h};
+    console.log('[login] CREATE at',x,y,w,h);
     userInfoBtn=wx.createUserInfoButton({type:'text',text:'微信一键登录',
-      style:{left:W/2-70,top:H/2+65,width:140,height:42,lineHeight:42,
+      style:{left:x,top:y,width:w,height:h,lineHeight:h,
         backgroundColor:'#07c160',color:'#ffffff',textAlign:'center',fontSize:15,borderRadius:21}});
-    userInfoBtn.hide(); // 初始隐藏
-    userInfoBtn.onTap(res=>{
-      if(loginInProgress)return;
+    userInfoBtn.hide();
+    userInfoBtn.onTap(function(res){
+      _loginBtnDebug.lastTap=Date.now();
+      console.log('[login] ⚡ ONTAP fired!',JSON.stringify(res||{}).slice(0,200));
+      if(loginInProgress){console.log('[login] ONTAP blocked by loginInProgress');return;}
       loginInProgress=true;
       try{
-        console.log('[login] onTap:',JSON.stringify(res||{}));
         var ok=res&&res.errMsg&&res.errMsg.indexOf(':ok')>-1;
+        console.log('[login] ONTAP ok='+ok+' errMsg='+(res?res.errMsg:'null'));
         if(ok){
           if(res.rawData){
             try{var u=JSON.parse(res.rawData);setNick(u.nickName||'微信用户',u.avatarUrl||'');showToast('欢迎 '+nickname)}catch(e){console.log('[login] rawData parse:',e)}
@@ -672,28 +677,28 @@ function _createLoginBtn(){
           showLoginOverlay=false;
           hideWxLoginBtn();
         }else{
-          console.log('[login] cancelled:',res?res.errMsg:'no res');
           showToast('授权取消，请重试');
-          // 不销毁! 按钮保持活跃，用户可再次点击
         }
         loginInProgress=false;
-      }catch(e){
-        console.log('[login] onTap error:',e);
-        loginInProgress=false;
-      }
+      }catch(e){console.log('[login] ONTAP error:',e);loginInProgress=false;}
     });
-  }catch(e){console.log('[login] create btn error:',e)}
+    console.log('[login] button created, onTap registered');
+  }catch(e){console.log('[login] CREATE ERROR:',e);_loginBtnDebug.created='FAIL:'+e.message}
 }
 function showWxLoginBtn(){
+  console.log('[login] showWxLoginBtn: loginInProgress='+loginInProgress+' btn='+!!userInfoBtn+' loginBtnY='+loginBtnY);
   if(loginInProgress)return;
-  _createLoginBtn(); // 确保存在
-  if(!userInfoBtn)return;
-  // 更新位置（loginBtnY 由渲染帧计算）
+  _createLoginBtn();
+  if(!userInfoBtn){console.log('[login] showWxLoginBtn: NO BUTTON!');return;}
   var targetY=loginBtnY||(H/2+65);
   if(targetY!==_lastLoginBtnY){
-    try{userInfoBtn.style.top=targetY;_lastLoginBtnY=targetY}catch(e){}
+    try{userInfoBtn.style.top=targetY;_lastLoginBtnY=targetY;_loginBtnDebug.posY=targetY}catch(e){console.log('[login] style.top fail:',e)}
   }
-  try{userInfoBtn.show()}catch(e){console.log('[login] show err:',e)}
+  try{
+    userInfoBtn.show();
+    _loginBtnDebug.shown++;
+    console.log('[login] btn.show() ok, total_shown='+_loginBtnDebug.shown+' at y='+targetY);
+  }catch(e){console.log('[login] show err:',e)}
 }
 function hideWxLoginBtn(){if(userInfoBtn){try{userInfoBtn.hide()}catch(e){}}}
 // ── 背景音乐 ──
@@ -1873,7 +1878,21 @@ function drawOverlays(){
     }
     loginCloseBB=_drawClose(mx+mw-32,my);
     // 创建原生微信授权按钮，拿真实昵称头像
-    if(!nickname&&privacyAgreed){console.log('[login] render calling showWxLoginBtn, userInfoBtn='+!!userInfoBtn);showWxLoginBtn()}
+    if(!nickname&&privacyAgreed){
+      // 🔴 可视化按钮位置（红色框帮助对齐）
+      var dbgX=W/2-70, dbgY=loginBtnY||(H/2+65), dbgW=140, dbgH=42;
+      ctx.strokeStyle='#ff0000';ctx.lineWidth=2;ctx.setLineDash([4,4]);
+      ctx.beginPath();ctx.roundRect(dbgX,dbgY,dbgW,dbgH,21);ctx.stroke();ctx.setLineDash([]);
+      _s();ctx.font='10px sans-serif';ctx.fillStyle='#ff0000';ctx.textAlign='center';ctx.fillText('[按钮位置] x='+dbgX+' y='+dbgY+' W,H='+W+','+H,dbgX+dbgW/2,dbgY-5);_r();
+      _loginBtnDebug.posY=dbgY;_loginBtnDebug.x=dbgX;_loginBtnDebug.y=dbgY;
+      // 🎯 Canvas 备选按钮（触摸直接触发 wx.getUserProfile，绕过 native 按钮问题）
+      ctx.fillStyle='rgba(255,0,0,0.25)';ctx.beginPath();ctx.roundRect(dbgX,dbgY,dbgW,dbgH,21);ctx.fill();
+      _s();ctx.font='13px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('[调试]触摸此处登录',W/2,dbgY+dbgH/2);_r();
+      loginBtnBB={id:'wxlogin',x:dbgX,y:dbgY,w:dbgW,h:dbgH};
+      console.log('[login] draw debug rect at',dbgX,dbgY,dbgW,dbgH);
+      console.log('[login] render calling showWxLoginBtn, userInfoBtn='+!!userInfoBtn);
+      showWxLoginBtn();
+    }
     return;
   }
   // 🔧 特效菜单
@@ -2059,6 +2078,10 @@ function handleTouch(tx,ty){
     return;
   }
   if(showLoginOverlay){
+    // 🔴 调试：记录每次触摸
+    if(!_loginTouchLog){_loginTouchLog=0};
+    _loginTouchLog++;
+    if(_loginTouchLog%5===0)console.log('[login] touch #'+_loginTouchLog+' at ('+tx+','+ty+') loginBtnBB='+(loginBtnBB?loginBtnBB.id:'none')+' nickname='+!!nickname+' privacyAgreed='+privacyAgreed);
     // 隐私协议UI — 勾选即同意
     if(!nickname){
       if(privacyCB&&tx>=privacyCB.x&&tx<=privacyCB.x+privacyCB.w&&ty>=privacyCB.y&&ty<=privacyCB.y+privacyCB.h){privacyCheckOn=!privacyCheckOn;privacyAgreed=privacyCheckOn;console.log('[login] checkbox: privacyAgreed='+privacyAgreed);return}
@@ -2067,8 +2090,25 @@ function handleTouch(tx,ty){
     }
     if(loginCloseBB&&tx>=loginCloseBB.x&&tx<=loginCloseBB.x+loginCloseBB.w&&ty>=loginCloseBB.y&&ty<=loginCloseBB.y+loginCloseBB.h){showLoginOverlay=false;privacyCheckOn=false;privacyAgreed=false;hideWxLoginBtn();return}
     if(loginBtnBB&&tx>=loginBtnBB.x&&tx<=loginBtnBB.x+loginBtnBB.w&&ty>=loginBtnBB.y&&ty<=loginBtnBB.y+loginBtnBB.h){
+      console.log('[login] touch hit loginBtnBB id='+loginBtnBB.id+' tx='+tx+' ty='+ty);
       if(loginBtnBB.id==='logout'){logoutUser();showLoginOverlay=false;hideWxLoginBtn()}
-      if(loginBtnBB.id==='guest'){showLoginOverlay=false;privacyCheckOn=false;privacyAgreed=false;console.log('[unscrew] guest mode')}
+      else if(loginBtnBB.id==='wxlogin'){
+        // 🎯 Canvas备选：直接调用微信授权
+        console.log('[login] canvas wxlogin fallback, calling wx.getUserInfo');
+        if(loginInProgress){console.log('[login] canvas fallback blocked');return;}
+        loginInProgress=true;
+        try{
+          wx.getUserInfo({success:function(r){
+            console.log('[login] getUserInfo success:',JSON.stringify(r).slice(0,200));
+            var u=r.userInfo;if(u){setNick(u.nickName||'微信用户',u.avatarUrl||'');showToast('欢迎 '+nickname)}
+            loadGame();showLoginOverlay=false;hideWxLoginBtn();loginInProgress=false;
+          },fail:function(err){
+            console.log('[login] getUserInfo fail:',JSON.stringify(err).slice(0,200));
+            showToast('授权失败，请重试');loginInProgress=false;
+          }});
+        }catch(e){console.log('[login] canvas fallback error:',e);loginInProgress=false;}
+      }
+      else if(loginBtnBB.id==='guest'){showLoginOverlay=false;privacyCheckOn=false;privacyAgreed=false;console.log('[unscrew] guest mode')}
       return;}
     return;
   }
