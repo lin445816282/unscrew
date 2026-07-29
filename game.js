@@ -1879,14 +1879,13 @@ function drawOverlays(){
     loginCloseBB=_drawClose(mx+mw-32,my);
     // 创建原生微信授权按钮，拿真实昵称头像
     if(!nickname&&privacyAgreed){
-      // 🟢 醒目Canvas按钮（用toast反馈，不依赖控制台）
+      // 🟢 纯Canvas按钮（不用native按钮，避免onTap失灵拦截触摸）
       var dbgX=W/2-70, dbgY=loginBtnY||(H/2+65), dbgW=140, dbgH=42;
-      // 绿色按钮底色
       ctx.fillStyle='#07c160';ctx.beginPath();ctx.roundRect(dbgX,dbgY,dbgW,dbgH,21);ctx.fill();
       _s();ctx.font='bold 14px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('微信一键登录',W/2,dbgY+dbgH/2);_r();
-      loginBtnBB={id:'wxlogin',x:dbgX,y:dbgY,w:dbgW,h:dbgH};
-      showWxLoginBtn();
-      // 之后如果native按钮也出现，会叠在canvas按钮上面
+      // 加大触摸区域：往外扩20px
+      loginBtnBB={id:'wxlogin',x:dbgX-20,y:dbgY-10,w:dbgW+40,h:dbgH+20};
+      // ⚠️ 不再调 showWxLoginBtn()，避免native按钮拦截触摸
     }
     return;
   }
@@ -2253,7 +2252,6 @@ try{clickSfxIdx=parseInt(wx.getStorageSync('sfx_idx'))||0}catch(e){}
 try{bgmOn=wx.getStorageSync('bgm')==='1'}catch(e){}
 try{initAd()}catch(e){console.warn('[unscrew] initAd failed:',e.message)}
 try{generateLevel()}catch(e){console.error('[unscrew] generateLevel failed:',e.message);ctx.fillStyle='#ef4444';ctx.fillRect(0,0,W,60);ctx.fillStyle='#fff';ctx.font='13px sans-serif';ctx.fillText('关卡生成失败: '+e.message,10,25);ctx.fillText('请检查数据后重试',10,45);return}
-_createLoginBtn(); // 预创建登录按钮，避免 create/destroy 导致 onTap 失灵
 requestAnimationFrame(loop);
 console.log('[unscrew] started');
 if(!tutDone){setTimeout(function(){showTutorialOverlay=true;tutIdx=0},400)}
