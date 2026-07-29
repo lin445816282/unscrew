@@ -1836,31 +1836,27 @@ function drawOverlays(){
             style:{left:W/2-70,top:targetY,width:140,height:42,lineHeight:42,
               backgroundColor:'#07c160',color:'#ffffff',textAlign:'center',fontSize:15,borderRadius:21}});
           userInfoBtn.onTap(function(res){
-            console.log('[login] ⚡ ONTAP:',JSON.stringify(res||{}).slice(0,200));
+            console.log('[login] ⚡ ONTAP:',JSON.stringify(res||{}).slice(0,500));
             if(loginInProgress){return;}
             loginInProgress=true;
             var ok=res&&res.errMsg&&res.errMsg.indexOf(':ok')>-1;
             if(!ok){showToast('授权取消，请重试');loginInProgress=false;return;}
-            // 隐私已resolve，直接调wx.getUserInfo弹出授权框
-            console.log('[login] calling wx.getUserInfo');
-            wx.getUserInfo({success:function(r){
-              console.log('[login] getUserInfo ok:',JSON.stringify(r).slice(0,200));
-              var u=r.userInfo;
-              if(u&&u.nickName){setNick(u.nickName,u.avatarUrl||'');showToast('欢迎 '+nickname)}
-              else{setNick('微信用户','')}
-              loadGame();showLoginOverlay=false;
-              try{userInfoBtn.destroy()}catch(e){};userInfoBtn=null;
-              _nativeBtnCreated=false;loginInProgress=false;
-            },fail:function(e){
-              console.log('[login] getUserInfo fail:',e.errMsg);
-              setNick('微信用户','');loadGame();showLoginOverlay=false;
-              try{userInfoBtn.destroy()}catch(e){};userInfoBtn=null;
-              _nativeBtnCreated=false;loginInProgress=false;
-            }});
+            // 直接从createUserInfoButton响应拿用户信息
+            var u=null;
+            if(res.userInfo){u=res.userInfo;console.log('[login] got userInfo:',u.nickName)}
+            else if(res.rawData){try{u=JSON.parse(res.rawData);console.log('[login] parsed rawData:',u.nickName)}catch(e){console.log('[login] rawData parse err:',e)}}
+            if(u&&u.nickName){
+              setNick(u.nickName,u.avatarUrl||'');showToast('欢迎 '+nickname);
+            }else{
+              console.log('[login] ❌ 无用户信息！完整响应:',JSON.stringify(res));
+              showToast('未获取到用户信息，请确认权限已配置');
+            }
+            loadGame();showLoginOverlay=false;
+            try{userInfoBtn.destroy()}catch(e){};userInfoBtn=null;
+            _nativeBtnCreated=false;loginInProgress=false;
           });
         }catch(e){console.log('[login] create err:',e);_nativeBtnCreated=false}
       }
-      // 如果有按钮，确保它在正确位置
       if(userInfoBtn){try{userInfoBtn.style.top=targetY}catch(e){}}
     }
     return;
