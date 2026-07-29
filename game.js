@@ -683,7 +683,8 @@ function showWxLoginBtn(){
           if(userInfoBtn){try{userInfoBtn.hide()}catch(e){}}
         }else{
           console.log('[login] cancelled or failed:',res?res.errMsg:'no response');
-          showLoginOverlay=false;
+          showToast('授权取消，请重试');
+          // 不关弹窗，让用户重试
           if(userInfoBtn){try{userInfoBtn.hide()}catch(e){}}
         }
         loginInProgress=false;
