@@ -2107,7 +2107,7 @@ function handleTouch(tx,ty){
     if(tb.id==='efxToggle'){efxMenuOpen=!efxMenuOpen;return}
     if(tb.id==='daily'){if(isDailyDone()){showToast('今日已挑战');return}else{startDailyChallenge();return}}
     if(tb.id==='leaderboard'){loadLB();showLB=!showLB;return}
-    if(tb.id==='user'){const n=Date.now();if(n-_loginDebounce<400){console.log('[login] user btn debounced');return};_loginDebounce=n;showLoginOverlay=!showLoginOverlay;console.log('[login] user btn: showLoginOverlay='+showLoginOverlay+' nickname='+nickname+' userInfoBtn='+!!userInfoBtn);if(showLoginOverlay){privacyAgreed=false;privacyCheckOn=false;loginInProgress=false;_wxBtnTried=false;hideWxLoginBtn()}return}
+    if(tb.id==='user'){const n=Date.now();if(n-_loginDebounce<400){console.log('[login] user btn debounced');return};_loginDebounce=n;showLoginOverlay=!showLoginOverlay;console.log('[login] user btn: showLoginOverlay='+showLoginOverlay+' nickname='+nickname+' userInfoBtn='+!!userInfoBtn);if(showLoginOverlay){privacyAgreed=false;privacyCheckOn=false;loginInProgress=false;_wxBtnTried=false;if(userInfoBtn){try{userInfoBtn.destroy()}catch(e){};userInfoBtn=null}hideWxLoginBtn()}return}
   }}
   if(paused&&pauseBtnBB&&tx>=pauseBtnBB.x&&tx<=pauseBtnBB.x+pauseBtnBB.w&&ty>=pauseBtnBB.y&&ty<=pauseBtnBB.y+pauseBtnBB.h){paused=false;return}
   if(processing||paused)return;
