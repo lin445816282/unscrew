@@ -1,5 +1,7 @@
 // ═══════════════════════════════════════════
 // 萌糖消了个消 — 微信小游戏 Canvas 版
+// 视觉 1:1 复刻
+if(!String.prototype.padStart){String.prototype.padStart=function(l,c){c=c||' ';var s=this;while(s.length<l)s=c+s;return s}};
 // 视觉 1:1 复刻 ct256.cn/unscrew
 // ═══════════════════════════════════════════
 const FX = false; // 全局特效开关
@@ -391,7 +393,7 @@ function loadGame(){
 // ── 主题 ──
 function loadSkin(){try{activeSkin=wx.getStorageSync('skin')||'default'}catch(e){}}
 function setSkin(sid){activeSkin=sid;try{wx.setStorageSync('skin',sid)}catch(e){};showSkinPicker=false}
-function getSkin(){return SKINS.find(s=>s.id===activeSkin)||SKINS[0]}
+function getSkin(){if(activeTheme>=0){var ts=getThemeSkin();if(ts)return ts}return SKINS.find(s=>s.id===activeSkin)||SKINS[0]}
 // ── 每日签到 ──
 function loadCheckin(){try{const d=wx.getStorageSync('checkin');if(d){ckData=d}}catch(e){}}
 function getToday(){const d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()}
@@ -416,8 +418,61 @@ function doCheckin(){
 const SHOP_ITEMS=[{id:'undo',icon:'↩️',name:'撤回',desc:'撤回一步',price:10,qty:5},{id:'bomb',icon:'💣',name:'炸弹',desc:'清空收集槽',price:10,qty:3},{id:'peek',icon:'👁️',name:'透视',desc:'高亮可点糖果3秒',price:10,qty:3},{id:'lightning',icon:'⚡',name:'闪电',desc:'消除槽内最多颜色×2',price:15,qty:3},{id:'shuffle',icon:'🔀',name:'洗牌',desc:'随机重排棋盘颜色',price:20,qty:3}];
 let showShopOverlay=false;
 function buyItem(id,price,qty){if(coins<price){showToast('金币不足');return}coins-=price;props[id]+=qty;saveGame();showToast('购买成功! +'+qty+' '+id)}
+// ── 主题装扮系统（30套·中央美院风）──
+const DAILY_THEMES=[
+{n:"水墨丹青",c:["#1a1a1a","#444","#777","#aaa","#d0d0d0","#f0f0f0"],bt:"#f5f0e8",bb:"#d5d0c8",a:"#333"},
+{n:"敦煌飞天",c:["#d4a574","#8b4513","#cd853f","#f4a460","#deb887","#daa520"],bt:"#2d1b0e",bb:"#1a0f08",a:"#f59e0b"},
+{n:"青花瓷韵",c:["#1e3a5f","#2c5f8a","#4a90d9","#8bb8ea","#e8ddd0","#c8d6e5"],bt:"#f5f0e8",bb:"#d4c8b8",a:"#1e3a5f"},
+{n:"故宫朱红",c:["#c41e3a","#8b0000","#daa520","#8b6914","#f5f5dc","#d4c5a0"],bt:"#1a0a0a",bb:"#0d0505",a:"#ffd700"},
+{n:"青铜时代",c:["#4a7c59","#6b8e5a","#8f9779","#b8860b","#cd7f32","#daa520"],bt:"#1a2a1a",bb:"#0d1a0d",a:"#cd7f32"},
+{n:"唐三彩韵",c:["#c8a45c","#5b8c5a","#e8d5b7","#d4a574","#8b6914","#f5deb3"],bt:"#2d2010",bb:"#1a1008",a:"#c8a45c"},
+{n:"景泰蓝彩",c:["#1a3a6a","#2a5a9a","#40e0d0","#b8860b","#c0c0c0","#fff8dc"],bt:"#0a1525",bb:"#050a15",a:"#40e0d0"},
+{n:"剪纸窗花",c:["#cc0000","#e8302a","#fff","#f0f0f0","#000","#333"],bt:"#faf0e6",bb:"#e8d8c8",a:"#cc0000"},
+{n:"京剧脸谱",c:["#e60012","#000","#fff","#ffd700","#4a90d9","#2ecc71"],bt:"#2d0000",bb:"#1a0000",a:"#ffd700"},
+{n:"丝绸之茶",c:["#d4c4a8","#c8b088","#8b7355","#6b5335","#4a7c59","#2d5a2d"],bt:"#f5f0e0",bb:"#d4c8b0",a:"#8b7355"},
+{n:"竹林清风",c:["#2d5a2d","#3d6b3d","#4a7c4a","#6b8e6b","#8fbc8f","#b8d4b8"],bt:"#1a2a1a",bb:"#0d1a0d",a:"#2d5a2d"},
+{n:"古琴雅韵",c:["#3d2010","#5a3520","#8b6914","#c8a45c","#f5f0e0","#d4c8b0"],bt:"#1a0f08",bb:"#0d0805",a:"#8b6914"},
+{n:"茶道禅意",c:["#4a7c3a","#6b8e5a","#8fbc7a","#c8d4b0","#d4c4a0","#b8a880"],bt:"#f0ede0",bb:"#d8d0c0",a:"#4a7c3a"},
+{n:"苏州园林",c:["#3a7a5a","#5a9a7a","#c8d8c0","#e8f0e0","#888","#aaa"],bt:"#e8f0e0",bb:"#c8d8c0",a:"#3a7a5a"},
+{n:"敦煌藻井",c:["#1a2a5a","#2a4a8a","#c8a020","#e8c040","#8b1a1a","#c84040"],bt:"#0a0a20",bb:"#050515",a:"#e8c040"},
+{n:"绣球花开",c:["#7b2d8e","#9b4dae","#c8a0d8","#4a90d9","#e8b8d0","#fff"],bt:"#2d1a3a",bb:"#1a0d25",a:"#9b4dae"},
+{n:"桃花源记",c:["#e8a0b8","#f0c0d0","#4a7a3a","#6b9a5a","#f5deb3","#d4c4a0"],bt:"#faf0f0",bb:"#e8d8d8",a:"#e8a0b8"},
+{n:"荷塘月色",c:["#1a2a4a","#2a3a6a","#e8a0c0","#f0c0d8","#4a7a3a","#6b9a5a"],bt:"#0a0a20",bb:"#050515",a:"#e8a0c0"},
+{n:"梅兰竹菊",c:["#c84060","#7b4a9e","#3a7a3a","#e8c040","#f5f0e0","#d4c8b0"],bt:"#faf5f0",bb:"#e8ddd0",a:"#c84060"},
+{n:"星空幻想",c:["#1a1a4a","#2a2a6a","#4a2a8a","#c8a0e0","#f0d8ff","#e8c840"],bt:"#0a0a20",bb:"#050515",a:"#c8a0e0"},
+{n:"极光之舞",c:["#00b894","#00cec9","#6c5ce7","#a29bfe","#0984e3","#74b9ff"],bt:"#0a1525",bb:"#050a15",a:"#00cec9"},
+{n:"深海秘境",c:["#0a3a5a","#1a5a8a","#e87040","#ffa070","#40c8c0","#80e8e0"],bt:"#050a20",bb:"#020815",a:"#40c8c0"},
+{n:"热带雨林",c:["#1a4a1a","#2a6a2a","#6b8e3a","#8fbc5a","#c84040","#e87040"],bt:"#0a1a0a",bb:"#050d05",a:"#6b8e3a"},
+{n:"沙漠绿洲",c:["#c8a060","#d4b870","#e8d0a0","#40a0a0","#60c0c0","#2a6a4a"],bt:"#f5e0c0",bb:"#d4c0a0",a:"#40a0a0"},
+{n:"冰雪奇缘",c:["#a0d8f0","#c0e8ff","#e0f0ff","#80c0e8","#60a8d8","#4088c0"],bt:"#e8f4ff",bb:"#c8ddf0",a:"#4088c0"},
+{n:"樱花物语",c:["#f0a0b8","#f8c0d0","#f8d8e0","#4a8a4a","#6aaa6a","#fff"],bt:"#fff0f5",bb:"#f0d8e0",a:"#f0a0b8"},
+{n:"薰衣草田",c:["#7b4a9e","#9b6abe","#c8a0d8","#4a8a4a","#6aaa6a","#e8d8f0"],bt:"#2d1a3a",bb:"#1a0d25",a:"#9b6abe"},
+{n:"玫瑰花园",c:["#c82040","#e84060","#f06080","#4a1a1a","#6a2a2a","#f0d0d8"],bt:"#2d0a10",bb:"#1a0508",a:"#e84060"},
+{n:"赛博朋克",c:["#ff007f","#00f0ff","#7b00ff","#ffd700","#1a1a2e","#0a0a15"],bt:"#0a0a15",bb:"#05050a",a:"#ff007f"},
+{n:"霓虹都市",c:["#ff1493","#00ffff","#ff4500","#7fff00","#ffd700","#9400d3"],bt:"#0a0a1a",bb:"#050510",a:"#ff1493"}
+];
+const THEME_UNLOCK=[20,40,60,70,80,90,100,110,120,130,140,150,155,160,165,170,175,180,185,190,195,200,205,210,215,220,225,230,235,240];
+let activeTheme=-1,showThemePicker=false;
+function isThemeUnlocked(i){return level>=THEME_UNLOCK[i]}
+function loadedTheme(){try{var t=wx.getStorageSync('theme');activeTheme=(t!==undefined&&t!==null&&t>=0&&t<DAILY_THEMES.length)?t:-1}catch(e){activeTheme=-1}}
+function setTheme(i){
+  if(i<0){activeTheme=-1;try{wx.removeStorageSync('theme')}catch(e){}}
+  else if(isThemeUnlocked(i)){activeTheme=i;try{wx.setStorageSync('theme',i)}catch(e){}}
+  showThemePicker=false;generateLevel();
+}
+function makeThemeColor(hex,i){
+  var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  var lr=Math.min(255,r+60),lg=Math.min(255,g+60),lb=Math.min(255,b+60);
+  return{name:hex,hex:hex,light:'#'+lr.toString(16).padStart(2,'0')+lg.toString(16).padStart(2,'0')+lb.toString(16).padStart(2,'0'),face:['bunny','shy','angry','cool','wow','silly'][i%6],pattern:['crosshatch','diagonal','dots','vstripes','concentric','checker'][i%6]}
+}
+function getThemeColors(){if(activeTheme<0||activeTheme>=DAILY_THEMES.length)return COLORS;return DAILY_THEMES[activeTheme].c.map(function(h,i){return makeThemeColor(h,i)})}
+function getThemeSkin(){
+  if(activeTheme<0||activeTheme>=DAILY_THEMES.length)return null;
+  var t=DAILY_THEMES[activeTheme];
+  return{id:'theme'+activeTheme,name:t.n,bgTop:t.bt,bgMid:t.bt,bgBot:t.bb,boardTop:'#d4a660',boardMid:'#dbb472',boardBot:'#9a6a30',boardBorder:'#684420'}
+}
 // ── 每日挑战 ──
-let dailyMode=false, isDailyLevel=false;
+let dailyMode=false, isDailyLevel=false, dailyTheme=null;
 function seedRandom(s){var a=s;return function(){var t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
 function getDailySeed(){var d=new Date();return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate()}
 let _origRandom=Math.random;
@@ -425,7 +480,18 @@ function isDailyDone(){try{var d=wx.getStorageSync('daily_done');return d===getD
 function markDailyDone(){try{wx.setStorageSync('daily_done',getDailySeed().toString())}catch(e){}}
 function startDailyChallenge(){
   if(isDailyDone()){showToast('今日已挑战');return}
-  dailyMode=true;isDailyLevel=true;Math.random=seedRandom(getDailySeed());generateLevel();randomHats();Math.random=_origRandom;dailyMode=false;showToast('🔥 每日挑战!')
+  dailyMode=true;isDailyLevel=true;
+  // 每日随机主题：每人每天不同，存本地保证当天一致
+  var today=getDailySeed().toString(),savedKey='daily_theme_'+today;
+  var ti;
+  try{ti=wx.getStorageSync(savedKey)}catch(e){}
+  if(ti===undefined||ti===null||ti===''||ti>=DAILY_THEMES.length){
+    ti=Math.floor(Math.random()*DAILY_THEMES.length);
+    try{wx.setStorageSync(savedKey,ti)}catch(e){}
+  }
+  dailyTheme=DAILY_THEMES[ti];dailyTheme.i=ti;
+  Math.random=seedRandom(getDailySeed());generateLevel();randomHats();Math.random=_origRandom;dailyMode=false;
+  showToast('🔥 每日挑战 · '+dailyTheme.n)
 }
 // 🔧 每日挑战帽子（随机给螺丝戴同色帽子）
 let screwHats = {};
@@ -646,7 +712,7 @@ let nickname='', avatarUrl='', showLoginOverlay=false, userInfoBtn=null, privacy
 var loginBtnY=0, _nativeBtnCreated=false, _privacyResolve=null;
 function loadNick(){try{nickname=wx.getStorageSync('nick')||'';avatarUrl=wx.getStorageSync('avatar')||''}catch(e){}}
 function setNick(n,a){nickname=n;avatarUrl=a||'';try{wx.setStorageSync('nick',n);if(a)wx.setStorageSync('avatar',a)}catch(e){}}
-function logoutUser(){nickname='';avatarUrl='';setNick('','');level=1;score=0;coins=30;props={undo:1,bomb:0,peek:0,lightning:0,shuffle:0};try{wx.removeStorageSync('u_lv');wx.removeStorageSync('u_sc');wx.removeStorageSync('u_co');wx.removeStorageSync('u_pr');wx.removeStorageSync('checkin');wx.removeStorageSync('daily_done');wx.removeStorageSync('cleared')}catch(e){};loginInProgress=false;showLvlPicker=false;showSkinPicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showWinOverlay=false;showLoseOverlay=false;showPrivacyText='';saveGame();showToast('已退出，数据已重置')}
+function logoutUser(){nickname='';avatarUrl='';setNick('','');level=1;score=0;coins=30;props={undo:1,bomb:0,peek:0,lightning:0,shuffle:0};try{wx.removeStorageSync('u_lv');wx.removeStorageSync('u_sc');wx.removeStorageSync('u_co');wx.removeStorageSync('u_pr');wx.removeStorageSync('checkin');wx.removeStorageSync('daily_done');wx.removeStorageSync('cleared')}catch(e){};loginInProgress=false;showLvlPicker=false;showSkinPicker=false;showThemePicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showWinOverlay=false;showLoseOverlay=false;showPrivacyText='';saveGame();showToast('已退出，数据已重置')}
 // ═══════ 登录按钮：每次勾选时全新创建，用完就毁，不hide/show ═══════
 function showWxLoginBtn(){} // 占位，已废弃
 function hideWxLoginBtn(){if(userInfoBtn){try{userInfoBtn.hide()}catch(e){}}}
@@ -767,12 +833,13 @@ function generateLevel(){
   // 🔧 修复2：清除上一局所有残留定时器
   clearAllTimers();
   screws=[];slots=[];history=[];combo=0;processing=false;starMoves=0;if(comboTimer){clearTimeout(comboTimer);comboTimer=null}particles=[];dyingScrews=[];comboPops=[];slotAnims=[];
-  const numColors=Math.min(COLORS.length,3+Math.ceil(level/10));
+  const availColors=(function(){try{if(isDailyLevel&&dailyTheme&&dailyTheme.c)return dailyTheme.c.map(function(h,i){return makeThemeColor(h,i)});if(activeTheme>=0&&activeTheme<DAILY_THEMES.length)return getThemeColors()}catch(e){}return COLORS})();
+  const numColors=Math.min(availColors.length,3+Math.ceil(level/10));
   // ⚡ 每色螺丝上限48（总≤480），层数≤18 ⚡
   const rawSPC=Math.round(level*1.2/3)*3;
   const screwsPerColor=Math.max(3,Math.min(rawSPC,48));
   const total=Math.min(numColors*screwsPerColor,480);
-  const levelColors=COLORS.slice(0,numColors),screwList=[];
+  const levelColors=availColors.slice(0,numColors),screwList=[];
   for(let c=0;c<numColors;c++)for(let i=0;i<screwsPerColor;i++)screwList.push({color:levelColors[c]});
   for(let i=screwList.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[screwList[i],screwList[j]]=[screwList[j],screwList[i]]}
   const numLayers=Math.min(18,Math.max(3,Math.floor(total/7))),mid=(numLayers-1)/2,sigma=numLayers/3;
@@ -809,12 +876,12 @@ function processClick(screw){if(processing||paused||!screw||screw.blocked||screw
   const slotIdx=slots.findIndex(sl=>sl.id===newId);
   slotAnims.push({idx:slotIdx,type:'popIn',startTime:Date.now(),duration:250,color:screw.color.hex});
   sfxClick();updateBlocked(screw.id);checkMatches()}
-function checkMatches(){const count={};slots.forEach((s,i)=>{if(!s)return;const k=s.color.name;if(!count[k])count[k]=[];count[k].push(i)});let mi=null;for(const cn in count){if(count[cn].length>=MATCH_COUNT){mi=count[cn].slice(0,MATCH_COUNT);break}}if(mi){processing=true;if(comboTimer)clearTimeout(comboTimer);combo++;const bonus=combo>1?combo*5:0;score+=30+bonus;sfxMatch();boardShake=Math.max(boardShake,0.5);const cx=BOARD_X+BOARD_W/2,cy=BOARD_Y+BOARD_H*0.55;spawnParticles(cx,cy,slots[mi[0]].color.hex,20);spawnParticles(cx,cy,slots[mi[0]].color.light||slots[mi[0]].color.hex,10);screenFlash=Math.min(screenFlash+0.2,0.4);const now2=Date.now();mi.forEach(idx=>slotAnims.push({idx,type:'glow',startTime:now2,duration:200,color:slots[idx].color.hex}));if(combo>=2){const tier=combo>=7?2:combo>=4?1:0;const txt=combo>=7?'🔥超级连击!':combo>=4?'⚡连击x'+combo:'combo x'+combo;spawnComboPop(cx,cy-20,txt,30+bonus,tier)};comboTimer=setTimeout(()=>{combo=0},COMBO_TIMEOUT);setTimeout(()=>{mi.sort((a,b)=>b-a).forEach(i=>slots.splice(i,1));slots=slots.filter(Boolean);processing=false;if(screws.every(s=>s.removed)){sfxWin();setTimeout(winLevel,350)}},130)}else{if(slots.filter(Boolean).length>=MAX_SLOTS){processing=true;sfxLose();boardShake=1;const remain=screws.filter(s=>!s.removed).length;losePct=Math.round((totalScrewCount-remain)/totalScrewCount*100);setTimeout(()=>{showSkinPicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showLvlPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showLoginOverlay=false;showLoseOverlay=true;processing=false},200)}else{setTimeout(()=>{processing=false},100)}}setTimeout(()=>{try{wx.setStorageSync('u_lv',level);wx.setStorageSync('u_sc',score);wx.setStorageSync('u_co',coins);wx.setStorageSync('u_pr',props)}catch(e){}},50)}
+function checkMatches(){const count={};slots.forEach((s,i)=>{if(!s)return;const k=s.color.name;if(!count[k])count[k]=[];count[k].push(i)});let mi=null;for(const cn in count){if(count[cn].length>=MATCH_COUNT){mi=count[cn].slice(0,MATCH_COUNT);break}}if(mi){processing=true;if(comboTimer)clearTimeout(comboTimer);combo++;const bonus=combo>1?combo*5:0;score+=30+bonus;sfxMatch();boardShake=Math.max(boardShake,0.5);const cx=BOARD_X+BOARD_W/2,cy=BOARD_Y+BOARD_H*0.55;spawnParticles(cx,cy,slots[mi[0]].color.hex,20);spawnParticles(cx,cy,slots[mi[0]].color.light||slots[mi[0]].color.hex,10);screenFlash=Math.min(screenFlash+0.2,0.4);const now2=Date.now();mi.forEach(idx=>slotAnims.push({idx,type:'glow',startTime:now2,duration:200,color:slots[idx].color.hex}));if(combo>=2){const tier=combo>=7?2:combo>=4?1:0;const txt=combo>=7?'🔥超级连击!':combo>=4?'⚡连击x'+combo:'combo x'+combo;spawnComboPop(cx,cy-20,txt,30+bonus,tier)};comboTimer=setTimeout(()=>{combo=0},COMBO_TIMEOUT);setTimeout(()=>{mi.sort((a,b)=>b-a).forEach(i=>slots.splice(i,1));slots=slots.filter(Boolean);processing=false;if(screws.every(s=>s.removed)){sfxWin();setTimeout(winLevel,350)}},130)}else{if(slots.filter(Boolean).length>=MAX_SLOTS){processing=true;sfxLose();boardShake=1;const remain=screws.filter(s=>!s.removed).length;losePct=Math.round((totalScrewCount-remain)/totalScrewCount*100);setTimeout(()=>{showSkinPicker=false;showThemePicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showLvlPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showLoginOverlay=false;showLoseOverlay=true;processing=false},200)}else{setTimeout(()=>{processing=false},100)}}setTimeout(()=>{try{wx.setStorageSync('u_lv',level);wx.setStorageSync('u_sc',score);wx.setStorageSync('u_co',coins);wx.setStorageSync('u_pr',props)}catch(e){}},50)}
 function winLevel(){
   // 🔧 修复4：过关清理残留
   clearAllTimers();
   // 关闭所有其他弹窗
-  showSkinPicker=false;showCheckin=false;showShopOverlay=false;
+  showSkinPicker=false;showThemePicker=false;showCheckin=false;showShopOverlay=false;
   showLvlPicker=false;showSfxPicker=false;showTutorialOverlay=false;showShareOverlay=false;
   showLB=false;showLoginOverlay=false;hideWxLoginBtn();
   // ⭐ 双维评级
@@ -833,7 +900,7 @@ function winLevel(){
   saveGame();
   showWinOverlay=true;
 }
-function restartLevel(){const wasDaily=isDailyLevel;showSkinPicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showLvlPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showLoginOverlay=false;showPrivacyText='';privacyCheckOn=false;hideWxLoginBtn();showLoseOverlay=false;showWinOverlay=false;isDailyLevel=false;screwHats={};dailyBonus=0;generateLevel();if(wasDaily){isDailyLevel=true;randomHats()}}
+function restartLevel(){const wasDaily=isDailyLevel;showThemePicker=false;showSkinPicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showLvlPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showLoginOverlay=false;showPrivacyText='';privacyCheckOn=false;hideWxLoginBtn();showLoseOverlay=false;showWinOverlay=false;isDailyLevel=false;screwHats={};dailyBonus=0;generateLevel();if(wasDaily){isDailyLevel=true;randomHats()}}
 // ── 道具 ──
 function doUndo(){if(history.length===0)return false;showLoseOverlay=false;const last=history.pop();if(last.screwId!==null&&last.screwId!==undefined){const s=screws.find(x=>x.id===last.screwId);if(s){s.removed=false;s.blocked=false;s.blockedDepth=0}const idx=slots.findIndex(sl=>sl&&sl.id===last.screwId);if(idx>=0)slots.splice(idx,1)}if(last.shuffleColors){for(const sc of last.shuffleColors){const s=screws.find(x=>x.id===sc.id);if(s)s.color=sc.color}}slots=last.slots.filter(Boolean);score=last.score;combo=last.combo;updateBlocked();return true}
 function doBomb(){if(slots.filter(Boolean).length===0)return false;const last=slots.pop();const s=screws.find(x=>x.id===last.id);if(s){s.removed=false;s.blocked=false;s.blockedDepth=0;spawnParticles(s.x,s.y,s.color.hex,18);spawnParticles(s.x,s.y,'#ffffff',6);screenFlash=Math.min(screenFlash+0.3,0.5);boardShake=Math.max(boardShake,2)}sfxBomb();playTone(220,0.4,'sine',0.5);setTimeout(()=>playTone(165,0.5,'sine',0.4),80);updateBlocked();return true}
@@ -1166,6 +1233,7 @@ function drawPropsBar(){
 let topButtons=[]; // {id, x, y, w, h} for top-row buttons
 let ckButton=null; // checkin button rect
 let skinButtons=[]; // skin picker option rects
+let themeButtons=[]; // theme picker rects
 let shopBuyBB=[], shopCloseBB=null;
 let lvlListBB=[], lvlCloseBB=null;
 let _sfxListBB=[], _sfxCloseBB=null;
@@ -1233,6 +1301,7 @@ function drawUI(){
   const btnS=30, btnGap=6;
   const iconList=[
     {e:bgmOn?'🎵':'🎶',id:'bgm',active:bgmOn},
+    {e:'🎭',id:'theme',active:showThemePicker},
     {e:'🎨',id:'skin',active:showSkinPicker},
     {e:'🏆',id:'leaderboard',active:showLB},
     {e:nickname?'✓':'👤',id:'user',active:!!nickname}
@@ -1489,6 +1558,50 @@ function drawOverlays(){
     return;
   }
   // 皮肤选择器
+  if(showThemePicker){
+    var tw=290,th=380,tx=(W-tw)/2,ty=(H-th)/2;
+    _drawPanel(tx,ty,tw,th,14);
+    var tcx=tx+tw/2;
+    _s();ctx.font='bold 15px sans-serif';ctx.fillStyle='#e2e8f0';ctx.textAlign='center';ctx.fillText('🎭 主题装扮',tcx,ty+26);_r();
+    _drawClose(tx+tw-34,ty);
+    _s();ctx.font='9px sans-serif';ctx.fillStyle='#64748b';ctx.textAlign='center';
+    ctx.fillText('共30套·解锁制·金边已选',tcx,ty+42);_r();
+    themeButtons=[];
+    var dx=tx+12,dy=ty+50,rh=28,gap=2;
+    // 默认色板
+    var sel=(activeTheme<0);
+    ctx.fillStyle=sel?'rgba(251,191,36,0.18)':'rgba(255,255,255,0.04)';
+    ctx.beginPath();ctx.roundRect(dx,dy,tw-24,rh,8);ctx.fill();
+    if(sel){ctx.strokeStyle='#fbbf24';ctx.lineWidth=2.5;ctx.beginPath();ctx.roundRect(dx+2,dy+2,tw-28,rh-4,7);ctx.stroke()}
+    _s();ctx.font='13px sans-serif';ctx.fillStyle=sel?'#fbbf24':'#94a3b8';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText((sel?'● ':'  ')+'默认色板',dx+10,dy+rh/2);_r();
+    themeButtons.push({id:-1,x:dx,y:dy,w:tw-24,h:rh});
+    for(var ti=0;ti<DAILY_THEMES.length;ti++){
+      var ty2=dy+rh+gap+ti*(rh+gap);
+      if(ty2+rh>ty+th-12)break;
+      var locked=!isThemeUnlocked(ti),tsel=(ti===activeTheme);
+      var bt=locked?'rgba(255,255,255,0.02)':tsel?'rgba(251,191,36,0.14)':'rgba(255,255,255,0.04)';
+      ctx.fillStyle=bt;ctx.beginPath();ctx.roundRect(dx,ty2,tw-24,rh,8);ctx.fill();
+      if(tsel){ctx.strokeStyle='#fbbf24';ctx.lineWidth=2.5;ctx.beginPath();ctx.roundRect(dx+2,ty2+2,tw-28,rh-4,7);ctx.stroke()}
+      _s();
+      ctx.font='11px sans-serif';
+      ctx.fillStyle=locked?'#4a5568':(tsel?'#fbbf24':'#94a3b8');
+      ctx.textAlign='left';ctx.textBaseline='middle';
+      ctx.fillText((locked?'🔒 ':(tsel?'● ':'  '))+DAILY_THEMES[ti].n,dx+8,ty2+rh/2);
+      ctx.font='8px sans-serif';ctx.fillStyle='#64748b';ctx.textAlign='right';
+      ctx.fillText('Lv.'+THEME_UNLOCK[ti],dx+tw-42,ty2+rh/2);
+      for(var ci=0;ci<4;ci++){
+        ctx.fillStyle=DAILY_THEMES[ti].c[ci];ctx.beginPath();ctx.roundRect(dx+tw-78+ci*14,ty2+7,12,14,5);ctx.fill()
+      }
+      _r();
+      themeButtons.push({id:ti,x:dx,y:ty2,w:tw-24,h:rh});
+    }
+    return;
+  }
+  if(showThemePicker){
+    for(var i=0;i<themeButtons.length;i++){var tb=themeButtons[i];if(tx>=tb.x&&tx<=tb.x+tb.w&&ty>=tb.y&&ty<=tb.y+tb.h){setTheme(tb.id);return}}
+    showThemePicker=false;return;
+  }
   if(showSkinPicker){
     const pw=200,ph=SKINS.length*34+44,px=(W-pw)/2,py=(H-ph)/2;
     _drawPanel(px,py,pw,ph,14);
@@ -2041,6 +2154,50 @@ function handleTouch(tx,ty){
       return;}
     return;
   }
+  if(showThemePicker){
+    var tw=290,th=380,tx=(W-tw)/2,ty=(H-th)/2;
+    _drawPanel(tx,ty,tw,th,14);
+    var tcx=tx+tw/2;
+    _s();ctx.font='bold 15px sans-serif';ctx.fillStyle='#e2e8f0';ctx.textAlign='center';ctx.fillText('🎭 主题装扮',tcx,ty+26);_r();
+    _drawClose(tx+tw-34,ty);
+    _s();ctx.font='9px sans-serif';ctx.fillStyle='#64748b';ctx.textAlign='center';
+    ctx.fillText('共30套·解锁制·金边已选',tcx,ty+42);_r();
+    themeButtons=[];
+    var dx=tx+12,dy=ty+50,rh=28,gap=2;
+    // 默认色板
+    var sel=(activeTheme<0);
+    ctx.fillStyle=sel?'rgba(251,191,36,0.18)':'rgba(255,255,255,0.04)';
+    ctx.beginPath();ctx.roundRect(dx,dy,tw-24,rh,8);ctx.fill();
+    if(sel){ctx.strokeStyle='#fbbf24';ctx.lineWidth=2.5;ctx.beginPath();ctx.roundRect(dx+2,dy+2,tw-28,rh-4,7);ctx.stroke()}
+    _s();ctx.font='13px sans-serif';ctx.fillStyle=sel?'#fbbf24':'#94a3b8';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText((sel?'● ':'  ')+'默认色板',dx+10,dy+rh/2);_r();
+    themeButtons.push({id:-1,x:dx,y:dy,w:tw-24,h:rh});
+    for(var ti=0;ti<DAILY_THEMES.length;ti++){
+      var ty2=dy+rh+gap+ti*(rh+gap);
+      if(ty2+rh>ty+th-12)break;
+      var locked=!isThemeUnlocked(ti),tsel=(ti===activeTheme);
+      var bt=locked?'rgba(255,255,255,0.02)':tsel?'rgba(251,191,36,0.14)':'rgba(255,255,255,0.04)';
+      ctx.fillStyle=bt;ctx.beginPath();ctx.roundRect(dx,ty2,tw-24,rh,8);ctx.fill();
+      if(tsel){ctx.strokeStyle='#fbbf24';ctx.lineWidth=2.5;ctx.beginPath();ctx.roundRect(dx+2,ty2+2,tw-28,rh-4,7);ctx.stroke()}
+      _s();
+      ctx.font='11px sans-serif';
+      ctx.fillStyle=locked?'#4a5568':(tsel?'#fbbf24':'#94a3b8');
+      ctx.textAlign='left';ctx.textBaseline='middle';
+      ctx.fillText((locked?'🔒 ':(tsel?'● ':'  '))+DAILY_THEMES[ti].n,dx+8,ty2+rh/2);
+      ctx.font='8px sans-serif';ctx.fillStyle='#64748b';ctx.textAlign='right';
+      ctx.fillText('Lv.'+THEME_UNLOCK[ti],dx+tw-42,ty2+rh/2);
+      for(var ci=0;ci<4;ci++){
+        ctx.fillStyle=DAILY_THEMES[ti].c[ci];ctx.beginPath();ctx.roundRect(dx+tw-78+ci*14,ty2+7,12,14,5);ctx.fill()
+      }
+      _r();
+      themeButtons.push({id:ti,x:dx,y:ty2,w:tw-24,h:rh});
+    }
+    return;
+  }
+  if(showThemePicker){
+    for(var i=0;i<themeButtons.length;i++){var tb=themeButtons[i];if(tx>=tb.x&&tx<=tb.x+tb.w&&ty>=tb.y&&ty<=tb.y+tb.h){setTheme(tb.id);return}}
+    showThemePicker=false;return;
+  }
   if(showSkinPicker){
     for(const sb of skinButtons){if(tx>=sb.x&&tx<=sb.x+sb.w&&ty>=sb.y&&ty<=sb.y+sb.h){setSkin(sb.id);return}}
     showSkinPicker=false;return;
@@ -2085,6 +2242,7 @@ function handleTouch(tx,ty){
     if(tb.id==='sound'){soundOn=!soundOn;try{wx.setStorageSync('sound',soundOn?'1':'0')}catch(e){};return}
     if(tb.id==='sfxsel'){showSfxPicker=true;sfxPickerScroll=0;return}
     if(tb.id==='pause'){paused=!paused;return}
+    if(tb.id==='theme'){showThemePicker=!showThemePicker;return}
     if(tb.id==='skin'){showSkinPicker=!showSkinPicker;return}
     if(tb.id==='bgm'){toggleBgm();return}
     if(tb.id==='level'){showLvlPicker=!showLvlPicker;lvlPickerScroll=Math.max(0,(500-level)*lvlRowH-60);return}
@@ -2092,7 +2250,7 @@ function handleTouch(tx,ty){
     if(tb.id==='efxToggle'){efxMenuOpen=!efxMenuOpen;return}
     if(tb.id==='daily'){if(isDailyDone()){showToast('今日已挑战');return}else{startDailyChallenge();return}}
     if(tb.id==='leaderboard'){loadLB();showLB=!showLB;return}
-    if(tb.id==='user'){const n=Date.now();if(n-_loginDebounce<400){return};_loginDebounce=n;showLoginOverlay=!showLoginOverlay;if(showLoginOverlay){showLvlPicker=false;showSkinPicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showPrivacyText='';privacyAgreed=false;privacyCheckOn=false;loginInProgress=false;_nativeBtnCreated=false;hideWxLoginBtn()}return}
+    if(tb.id==='user'){const n=Date.now();if(n-_loginDebounce<400){return};_loginDebounce=n;showLoginOverlay=!showLoginOverlay;if(showLoginOverlay){showLvlPicker=false;showSkinPicker=false;showThemePicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showPrivacyText='';privacyAgreed=false;privacyCheckOn=false;loginInProgress=false;_nativeBtnCreated=false;hideWxLoginBtn()}return}
   }}
   if(paused&&pauseBtnBB&&tx>=pauseBtnBB.x&&tx<=pauseBtnBB.x+pauseBtnBB.w&&ty>=pauseBtnBB.y&&ty<=pauseBtnBB.y+pauseBtnBB.h){paused=false;return}
   if(processing||paused)return;
@@ -2179,6 +2337,7 @@ if(!Math.imul)Math.imul=function(a,b){var ah=(a>>>16)&0xffff,al=a&0xffff,bh=(b>>
 (function init(){
 try{loadGame()}catch(e){console.warn('[unscrew] loadGame failed:',e.message)}
 try{loadSkin()}catch(e){console.warn('[unscrew] loadSkin failed:',e.message)}
+try{loadedTheme()}catch(e){console.warn('[unscrew] loadedTheme failed:',e.message)}
 try{loadCheckin()}catch(e){console.warn('[unscrew] loadCheckin failed:',e.message)}
 try{loadNick()}catch(e){console.warn('[unscrew] loadNick failed:',e.message)}
 try{tutDone=!!wx.getStorageSync('tut_done')}catch(e){}
