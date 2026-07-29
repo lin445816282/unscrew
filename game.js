@@ -647,8 +647,10 @@ function setNick(n,a){nickname=n;avatarUrl=a||'';try{wx.setStorageSync('nick',n)
 function logoutUser(){nickname='';avatarUrl='';setNick('','');level=1;score=0;coins=30;props={undo:1,bomb:0,peek:0,lightning:0,shuffle:0};try{wx.removeStorageSync('u_lv');wx.removeStorageSync('u_sc');wx.removeStorageSync('u_co');wx.removeStorageSync('u_pr');wx.removeStorageSync('checkin');wx.removeStorageSync('daily_done');wx.removeStorageSync('cleared')}catch(e){};loginInProgress=false;saveGame();showToast('已退出，数据已重置')}
 let _wxBtnTried=false; // 防重复创建
 function showWxLoginBtn(){
+  console.log('[login] showWxLoginBtn entered, loginInProgress='+loginInProgress+' userInfoBtn='+!!userInfoBtn+' _wxBtnTried='+_wxBtnTried)
   if(loginInProgress)return;
   if(userInfoBtn){
+    console.log('[login] calling userInfoBtn.show()')
     try{userInfoBtn.show()}catch(e){console.log('[login] show err:',e)}
     return;
   }
@@ -1870,7 +1872,7 @@ function drawOverlays(){
     }
     loginCloseBB=_drawClose(mx+mw-32,my);
     // 创建原生微信授权按钮，拿真实昵称头像
-    if(!nickname&&privacyAgreed){showWxLoginBtn()}
+    if(!nickname&&privacyAgreed){console.log('[login] render calling showWxLoginBtn, userInfoBtn='+!!userInfoBtn);showWxLoginBtn()}
     return;
   }
   // 🔧 特效菜单
@@ -2043,7 +2045,7 @@ function handleTouch(tx,ty){
   if(showLoginOverlay){
     // 隐私协议UI — 勾选即同意
     if(!nickname){
-      if(privacyCB&&tx>=privacyCB.x&&tx<=privacyCB.x+privacyCB.w&&ty>=privacyCB.y&&ty<=privacyCB.y+privacyCB.h){privacyCheckOn=!privacyCheckOn;privacyAgreed=privacyCheckOn;return}
+      if(privacyCB&&tx>=privacyCB.x&&tx<=privacyCB.x+privacyCB.w&&ty>=privacyCB.y&&ty<=privacyCB.y+privacyCB.h){privacyCheckOn=!privacyCheckOn;privacyAgreed=privacyCheckOn;console.log('[login] checkbox: privacyAgreed='+privacyAgreed);return}
       if(privacyUserBB&&tx>=privacyUserBB.x&&tx<=privacyUserBB.x+privacyUserBB.w&&ty>=privacyUserBB.y&&ty<=privacyUserBB.y+privacyUserBB.h){showPrivacyText='user';return}
       if(privacyPolicyBB&&tx>=privacyPolicyBB.x&&tx<=privacyPolicyBB.x+privacyPolicyBB.w&&ty>=privacyPolicyBB.y&&ty<=privacyPolicyBB.y+privacyPolicyBB.h){showPrivacyText='privacy';return}
     }
@@ -2105,7 +2107,7 @@ function handleTouch(tx,ty){
     if(tb.id==='efxToggle'){efxMenuOpen=!efxMenuOpen;return}
     if(tb.id==='daily'){if(isDailyDone()){showToast('今日已挑战');return}else{startDailyChallenge();return}}
     if(tb.id==='leaderboard'){loadLB();showLB=!showLB;return}
-    if(tb.id==='user'){const n=Date.now();if(n-_loginDebounce<400)return;_loginDebounce=n;showLoginOverlay=!showLoginOverlay;if(showLoginOverlay){privacyAgreed=false;privacyCheckOn=false;loginInProgress=false;_wxBtnTried=false;hideWxLoginBtn()}return}
+    if(tb.id==='user'){const n=Date.now();if(n-_loginDebounce<400){console.log('[login] user btn debounced');return};_loginDebounce=n;showLoginOverlay=!showLoginOverlay;console.log('[login] user btn: showLoginOverlay='+showLoginOverlay+' nickname='+nickname+' userInfoBtn='+!!userInfoBtn);if(showLoginOverlay){privacyAgreed=false;privacyCheckOn=false;loginInProgress=false;_wxBtnTried=false;hideWxLoginBtn()}return}
   }}
   if(paused&&pauseBtnBB&&tx>=pauseBtnBB.x&&tx<=pauseBtnBB.x+pauseBtnBB.w&&ty>=pauseBtnBB.y&&ty<=pauseBtnBB.y+pauseBtnBB.h){paused=false;return}
   if(processing||paused)return;
