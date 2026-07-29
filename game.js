@@ -641,7 +641,7 @@ const USER_AGREEMENT=`用户服务协议
 
 开始使用即表示您同意本协议的全部条款。`;
 let nickname='', avatarUrl='', showLoginOverlay=false, userInfoBtn=null, privacyAgreed=false, showPrivacyText='', loginInProgress=false;
-var loginBtnY=0, _nativeBtnCreated=false;
+var loginBtnY=0, _nativeBtnCreated=false, _privacyResolve=null;
 function loadNick(){try{nickname=wx.getStorageSync('nick')||'';avatarUrl=wx.getStorageSync('avatar')||''}catch(e){}}
 function setNick(n,a){nickname=n;avatarUrl=a||'';try{wx.setStorageSync('nick',n);if(a)wx.setStorageSync('avatar',a)}catch(e){}}
 function logoutUser(){nickname='';avatarUrl='';setNick('','');level=1;score=0;coins=30;props={undo:1,bomb:0,peek:0,lightning:0,shuffle:0};try{wx.removeStorageSync('u_lv');wx.removeStorageSync('u_sc');wx.removeStorageSync('u_co');wx.removeStorageSync('u_pr');wx.removeStorageSync('checkin');wx.removeStorageSync('daily_done');wx.removeStorageSync('cleared')}catch(e){};loginInProgress=false;showLvlPicker=false;showSkinPicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showWinOverlay=false;showLoseOverlay=false;showPrivacyText='';saveGame();showToast('已退出，数据已重置')}
@@ -2209,7 +2209,6 @@ try{bgmOn=wx.getStorageSync('bgm')==='1'}catch(e){}
 try{initAd()}catch(e){console.warn('[unscrew] initAd failed:',e.message)}
 try{generateLevel()}catch(e){console.error('[unscrew] generateLevel failed:',e.message);ctx.fillStyle='#ef4444';ctx.fillRect(0,0,W,60);ctx.fillStyle='#fff';ctx.font='13px sans-serif';ctx.fillText('关卡生成失败: '+e.message,10,25);ctx.fillText('请检查数据后重试',10,45);return}
 // 注册隐私授权：勾选我们的协议 → resolve → 微信放行
-var _privacyResolve=null;
 try{wx.onNeedPrivacyAuthorization(function(resolve){console.log('[privacy] onNeedPrivacyAuthorization');_privacyResolve=resolve;showLoginOverlay=true})}catch(e){console.log('[privacy] register err:',e)}
 requestAnimationFrame(loop);
 console.log('[unscrew] started');
