@@ -1,6 +1,7 @@
 {
   "deviceOrientation": "portrait",
   "showStatusBar": false,
+  "disableScroll": true,
   "networkTimeout": {
     "request": 10000
   }

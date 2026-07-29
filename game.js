@@ -353,6 +353,7 @@ let bgmOn=false, bgmInterval=null, bgmNoteIdx=0;
 // ── 存档（本地 + 云端）──
 function saveGame(){
   try{wx.setStorageSync('u_lv',level);wx.setStorageSync('u_sc',score);wx.setStorageSync('u_co',coins);wx.setStorageSync('u_pr',props)}catch(e){}
+  // 游客不存云端，防止同一 openid 覆盖登录账户数据
   if(!nickname)return;
   try{
     wx.login({success:function(res){
@@ -369,7 +370,13 @@ function saveGame(){
 function loadGame(){
   var localLv=1,localSc=0;
   try{localLv=Math.min(wx.getStorageSync('u_lv')||1,500);localSc=wx.getStorageSync('u_sc')||0;coins=wx.getStorageSync('u_co')||30;const p=wx.getStorageSync('u_pr');if(p){for(const k in p){if(p[k]<0)p[k]=0}props=p}}catch(e){}
-  if(!level)level=localLv;if(!score)score=localSc;
+  var hasNick=!!nickname;
+  if(hasNick){level=localLv;score=localSc}else{
+    level=1;score=0;coins=30;props={undo:5,bomb:3,peek:3,lightning:3,shuffle:3};
+    activeTheme=-1;activeSkin='default';
+    try{wx.removeStorageSync('theme');wx.removeStorageSync('checkin');wx.removeStorageSync('guest_nick');wx.setStorageSync('skin','default');wx.setStorageSync('u_co',30);wx.setStorageSync('u_pr',props)}catch(e){}
+    return;
+  }
     try{
     wx.login({success:function(res){
       if(!res.code){return}
@@ -383,6 +390,9 @@ function loadGame(){
             for(var ci=1;ci<=d.level;ci++){if(cl.indexOf(ci)<0){needRebuild=true;break}else{needRebuild=false}}
             if(needRebuild){var nc=[];for(var ci=1;ci<=d.level;ci++)nc.push(ci);wx.setStorageSync('cleared',JSON.stringify(nc))}
             if(d.level>localLv){generateLevel();showToast('云端进度已恢复: 第'+d.level+'关')}
+            try{loadSkin()}catch(e){}
+            try{loadedTheme()}catch(e){}
+            if(activeTheme>=0||activeSkin!=='default'){try{generateLevel()}catch(e){}}
           }else{}
         },
         fail:function(e){}
@@ -391,7 +401,7 @@ function loadGame(){
   }catch(e){}
 }
 // ── 主题 ──
-function loadSkin(){try{activeSkin=wx.getStorageSync('skin')||'default'}catch(e){}}
+function loadSkin(){try{if(!nickname){activeSkin='default';return}activeSkin=wx.getStorageSync('skin')||'default'}catch(e){}}
 function setSkin(sid){activeSkin=sid;try{wx.setStorageSync('skin',sid)}catch(e){};showSkinPicker=false}
 function getSkin(){if(activeTheme>=0){var ts=getThemeSkin();if(ts)return ts}return SKINS.find(s=>s.id===activeSkin)||SKINS[0]}
 // ── 每日签到 ──
@@ -454,11 +464,12 @@ const DAILY_THEMES=[
 const THEME_UNLOCK=[20,40,60,70,80,90,100,110,120,130,140,150,155,160,165,170,175,180,185,190,195,200,205,210,215,220,225,230,235,240];
 let activeTheme=-1,showThemePicker=false;
 function isThemeUnlocked(i){return level>=THEME_UNLOCK[i]}
-function loadedTheme(){try{var t=wx.getStorageSync('theme');activeTheme=(t!==undefined&&t!==null&&t>=0&&t<DAILY_THEMES.length)?t:-1}catch(e){activeTheme=-1}}
+function loadedTheme(){try{if(!nickname){activeTheme=-1;return}var t=wx.getStorageSync('theme');if(t!==undefined&&t!==null){t=Number(t);activeTheme=(t>=0&&t<DAILY_THEMES.length)?t:-1}else{activeTheme=-1}}catch(e){activeTheme=-1}}
 function setTheme(i){
   if(i<0){activeTheme=-1;try{wx.removeStorageSync('theme')}catch(e){}}
   else if(isThemeUnlocked(i)){activeTheme=i;try{wx.setStorageSync('theme',i)}catch(e){}}
-  showThemePicker=false;generateLevel();
+  showThemePicker=false;
+  try{generateLevel()}catch(e){}
 }
 function makeThemeColor(hex,i){
   var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
@@ -492,6 +503,10 @@ function startDailyChallenge(){
   dailyTheme=DAILY_THEMES[ti];dailyTheme.i=ti;
   Math.random=seedRandom(getDailySeed());generateLevel();randomHats();Math.random=_origRandom;dailyMode=false;
   showToast('🔥 每日挑战 · '+dailyTheme.n)
+}
+function cancelDailyChallenge(){
+  isDailyLevel=false;screwHats={};dailyBonus=0;Math.random=_origRandom;
+  generateLevel();showToast('已退出每日挑战')
 }
 // 🔧 每日挑战帽子（随机给螺丝戴同色帽子）
 let screwHats = {};
@@ -618,7 +633,7 @@ function loadLB(){
     success:function(rsp){if(rsp.data&&rsp.data.ok){lbData=rsp.data.list.map(function(i){
       var dt=i.created_at?i.created_at.slice(0,10):'';var parts=dt.split('-');var normDate=parts[0]+'-'+(+parts[1])+'-'+(+parts[2]);
       return{nick:i.nick,score:i.score,level:i.level,date:normDate};
-    })};lbData.sort(function(a,b){return b.score-a.score});_mergeLocal()},
+    })};lbData.sort(function(a,b){return b.score-a.score})},
     fail:function(){try{lbData=JSON.parse(wx.getStorageSync('lb')||'[]')}catch(e){lbData=[]};_mergeLocal()}
   })
 }
@@ -709,10 +724,10 @@ const USER_AGREEMENT=`用户服务协议
 
 开始使用即表示您同意本协议的全部条款。`;
 let nickname='', avatarUrl='', showLoginOverlay=false, userInfoBtn=null, privacyAgreed=false, showPrivacyText='', loginInProgress=false;
-var loginBtnY=0, _nativeBtnCreated=false, _privacyResolve=null;
+var loginBtnY=0, _nativeBtnCreated=false, _privacyResolve=null, _loginCanvasBB=null;
 function loadNick(){try{nickname=wx.getStorageSync('nick')||'';avatarUrl=wx.getStorageSync('avatar')||''}catch(e){}}
 function setNick(n,a){nickname=n;avatarUrl=a||'';try{wx.setStorageSync('nick',n);if(a)wx.setStorageSync('avatar',a)}catch(e){}}
-function logoutUser(){nickname='';avatarUrl='';setNick('','');level=1;score=0;coins=30;props={undo:1,bomb:0,peek:0,lightning:0,shuffle:0};try{wx.removeStorageSync('u_lv');wx.removeStorageSync('u_sc');wx.removeStorageSync('u_co');wx.removeStorageSync('u_pr');wx.removeStorageSync('checkin');wx.removeStorageSync('daily_done');wx.removeStorageSync('cleared')}catch(e){};loginInProgress=false;showLvlPicker=false;showSkinPicker=false;showThemePicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showWinOverlay=false;showLoseOverlay=false;showPrivacyText='';saveGame();showToast('已退出，数据已重置')}
+function logoutUser(){var oldNick=nickname;level=1;score=0;coins=30;props={undo:1,bomb:0,peek:0,lightning:0,shuffle:0};activeTheme=-1;isDailyLevel=false;dailyTheme=null;screwHats={};dailyBonus=0;try{wx.removeStorageSync('u_lv');wx.removeStorageSync('u_sc');wx.removeStorageSync('u_co');wx.removeStorageSync('u_pr');wx.removeStorageSync('theme');wx.removeStorageSync('checkin');wx.removeStorageSync('daily_done');wx.removeStorageSync('cleared');wx.removeStorageSync('guest_nick');wx.setStorageSync('u_lv',1)}catch(e){};if(oldNick){try{wx.login({success:function(res){if(!res.code)return;wx.request({url:'https://www.ct256.cn/neunav/api/unscrew/save',method:'POST',header:{'content-type':'application/json'},data:{code:res.code,nick:oldNick,score:0,level:1,stars:1,efficiency:0}})}})}catch(e){}};nickname='';avatarUrl='';setNick('','');loginInProgress=false;showLvlPicker=false;showSkinPicker=false;showThemePicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showWinOverlay=false;showLoseOverlay=false;showPrivacyText='';_nativeBtnCreated=false;_loginCanvasBB=null;hideWxLoginBtn();generateLevel();showToast('已退出，数据已重置')}
 // ═══════ 登录按钮：每次勾选时全新创建，用完就毁，不hide/show ═══════
 function showWxLoginBtn(){} // 占位，已废弃
 function hideWxLoginBtn(){if(userInfoBtn){try{userInfoBtn.hide()}catch(e){}}}
@@ -1130,6 +1145,7 @@ function drawOneScrew(s, isDying, dyingLife){
   ctx.globalAlpha=1;
 }
 function drawSlots(){
+  try{
   const totalW = BOARD_W;
   const sx = BOARD_X;
   const sy = SLOT_BAR_Y; // 板下槽位
@@ -1183,8 +1199,9 @@ function drawSlots(){
       // 🔧 性能：阴影改半透明圆垫底，省 shadowBlur
       ctx.fillStyle='rgba(0,0,0,0.18)';ctx.beginPath();ctx.arc(dx,dy+dotR*0.15,dotR*1.05,0,Math.PI*2);ctx.fill();
       // 主体渐变
+      const cl=s.color||COLORS[0];
       const dg=ctx.createRadialGradient(dx-dotR*0.3,dy-dotR*0.3,0,dx-dotR*0.3,dy-dotR*0.3,dotR*1.84);
-      dg.addColorStop(0,s.color.light);dg.addColorStop(0.5,s.color.hex);dg.addColorStop(1,shadeColor(s.color.hex,-30));
+      dg.addColorStop(0,cl.light||'#fff');dg.addColorStop(0.5,cl.hex||'#888');dg.addColorStop(1,shadeColor(cl.hex||'#666',-30));
       ctx.fillStyle=dg;ctx.beginPath();ctx.arc(dx,dy,dotR,0,Math.PI*2);ctx.fill();
       // 内高光 (box-shadow inset) — match web 3px+6px inset
       const ssig=ctx.createLinearGradient(dx,dy-dotR,dx,dy-dotR*0.85);
@@ -1192,11 +1209,12 @@ function drawSlots(){
       ssig.addColorStop(0.15,'rgba(255,255,255,0.12)');ssig.addColorStop(0.35,'rgba(255,255,255,0.02)');
       ssig.addColorStop(1,'rgba(255,255,255,0)');
       ctx.fillStyle=ssig;ctx.beginPath();ctx.arc(dx,dy,dotR,0,Math.PI*2);ctx.fill();
-      drawFace(ctx, s.color.face, dx, dy, dotR);
-      if(screwHats[s.id]){drawHat(ctx,dx,dy-dotR*0.58,dotR,screwHats[s.id],s.color)}
+      drawFace(ctx, cl.face||'bunny', dx, dy, dotR);
+      if(screwHats[s.id]){drawHat(ctx,dx,dy-dotR*0.58,dotR,screwHats[s.id],cl)}
       ctx.restore(); // end popIn scale
     }
   }
+  }catch(e){}
 }
 function drawPropsBar(){
   const _s=ctx.save.bind(ctx),_r=ctx.restore.bind(ctx);
@@ -1329,7 +1347,7 @@ function drawUI(){
   const btnH=24, btnGap2=8;
   const labels=[
     {t:'🛒 商店',id:'shop',cs:['#22d3ee','#0e7490']},
-    {t:isDailyDone()?'已挑战':'📅 每日',id:'daily',cs:isDailyDone()?['#9ca3af','#6b7280']:['#f87171','#dc2626']},
+    {t:isDailyLevel?'🔥 挑战中':isDailyDone()?'已挑战':'📅 每日',id:'daily',cs:isDailyLevel?['#fbbf24','#b45309']:isDailyDone()?['#9ca3af','#6b7280']:['#f87171','#dc2626']},
     {t:'签到',id:'checkin',cs:['#fbbf24','#d97706']}
   ];
   const eachW=Math.floor((midW-btnGap2*(labels.length-1))/labels.length);
@@ -1343,6 +1361,8 @@ function drawUI(){
     const bg=ctx.createLinearGradient(0,by,0,by+btnH);
     bg.addColorStop(0,cs[0]);bg.addColorStop(1,cs[1]);
     ctx.fillStyle=bg;ctx.beginPath();ctx.roundRect(bx,by,eachW,btnH,12);ctx.fill();_r();
+    // 金边（每日挑战激活时）
+    if(lb.id==='daily'&&isDailyLevel){ctx.strokeStyle='#fbbf24';ctx.lineWidth=2.5;ctx.beginPath();ctx.roundRect(bx+1.5,by+1.5,eachW-3,btnH-3,10.5);ctx.stroke();ctx.strokeStyle='rgba(251,191,36,0.4)';ctx.lineWidth=5;ctx.beginPath();ctx.roundRect(bx+3,by+3,eachW-6,btnH-6,9);ctx.stroke()}
     // 内高光
     _s();ctx.beginPath();ctx.roundRect(bx,by,eachW,btnH,12);ctx.clip();
     ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;
@@ -1588,19 +1608,15 @@ function drawOverlays(){
       ctx.fillStyle=locked?'#4a5568':(tsel?'#fbbf24':'#94a3b8');
       ctx.textAlign='left';ctx.textBaseline='middle';
       ctx.fillText((locked?'🔒 ':(tsel?'● ':'  '))+DAILY_THEMES[ti].n,dx+8,ty2+rh/2);
-      ctx.font='8px sans-serif';ctx.fillStyle='#64748b';ctx.textAlign='right';
-      ctx.fillText('Lv.'+THEME_UNLOCK[ti],dx+tw-42,ty2+rh/2);
+      ctx.font='10px sans-serif';ctx.fillStyle=locked?'#4a5568':'#94a3b8';ctx.textAlign='right';
+      ctx.fillText('Lv.'+THEME_UNLOCK[ti],dx+tw-90,ty2+rh/2);
       for(var ci=0;ci<4;ci++){
-        ctx.fillStyle=DAILY_THEMES[ti].c[ci];ctx.beginPath();ctx.roundRect(dx+tw-78+ci*14,ty2+7,12,14,5);ctx.fill()
+        ctx.fillStyle=DAILY_THEMES[ti].c[ci];ctx.beginPath();ctx.roundRect(dx+tw-84+ci*14,ty2+7,12,14,5);ctx.fill()
       }
       _r();
       themeButtons.push({id:ti,x:dx,y:ty2,w:tw-24,h:rh});
     }
     return;
-  }
-  if(showThemePicker){
-    for(var i=0;i<themeButtons.length;i++){var tb=themeButtons[i];if(tx>=tb.x&&tx<=tb.x+tb.w&&ty>=tb.y&&ty<=tb.y+tb.h){setTheme(tb.id);return}}
-    showThemePicker=false;return;
   }
   if(showSkinPicker){
     const pw=200,ph=SKINS.length*34+44,px=(W-pw)/2,py=(H-ph)/2;
@@ -1945,7 +1961,7 @@ function drawOverlays(){
       // 只创建一次，避免每帧destroy/create导致内部崩溃
       if(!_nativeBtnCreated&&!userInfoBtn){
         _nativeBtnCreated=true;
-                try{
+        if(sysInfo.platform!=='devtools'){try{
           userInfoBtn=wx.createUserInfoButton({type:'text',text:'微信一键登录',
             style:{left:W/2-70,top:targetY,width:140,height:42,lineHeight:42,
               backgroundColor:'#07c160',color:'#ffffff',textAlign:'center',fontSize:15,borderRadius:21}});
@@ -1967,9 +1983,15 @@ function drawOverlays(){
             try{userInfoBtn.destroy()}catch(e){};userInfoBtn=null;
             _nativeBtnCreated=false;loginInProgress=false;
           });
-        }catch(e){_nativeBtnCreated=false}
+        }catch(e){_nativeBtnCreated=false}}
       }
       if(userInfoBtn){try{userInfoBtn.style.top=targetY}catch(e){}}
+      // 🔧 Canvas 备用登录按钮（开发者工具不支持 createUserInfoButton 时兜底）
+      var loginCanvasW=140,loginCanvasH=42,loginCanvasX=W/2-loginCanvasW/2;
+      ctx.fillStyle='#07c160';ctx.beginPath();ctx.roundRect(loginCanvasX,targetY,loginCanvasW,loginCanvasH,21);ctx.fill();
+      _s();ctx.font='bold 15px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('微信一键登录',loginCanvasX+loginCanvasW/2,targetY+loginCanvasH/2);_r();
+      _loginCanvasBB={x:loginCanvasX,y:targetY,w:loginCanvasW,h:loginCanvasH};
     }
     return;
   }
@@ -2148,50 +2170,21 @@ function handleTouch(tx,ty){
       if(privacyPolicyBB&&tx>=privacyPolicyBB.x&&tx<=privacyPolicyBB.x+privacyPolicyBB.w&&ty>=privacyPolicyBB.y&&ty<=privacyPolicyBB.y+privacyPolicyBB.h){showPrivacyText='privacy';return}
     }
     if(loginCloseBB&&tx>=loginCloseBB.x&&tx<=loginCloseBB.x+loginCloseBB.w&&ty>=loginCloseBB.y&&ty<=loginCloseBB.y+loginCloseBB.h){showLoginOverlay=false;privacyCheckOn=false;privacyAgreed=false;_nativeBtnCreated=false;hideWxLoginBtn();return}
+    if(_loginCanvasBB&&tx>=_loginCanvasBB.x&&tx<=_loginCanvasBB.x+_loginCanvasBB.w&&ty>=_loginCanvasBB.y&&ty<=_loginCanvasBB.y+_loginCanvasBB.h){
+      if(loginInProgress)return;loginInProgress=true;
+      var _lt=setTimeout(function(){loginInProgress=false},10000);
+      wx.login({success:function(lr){
+        clearTimeout(_lt);
+        if(!lr.code){loginInProgress=false;showToast('登录失败');return}
+        setNick('萌糖玩家'+Math.random().toString(36).slice(2,8),'');
+        loadGame();showLoginOverlay=false;loginInProgress=false;_nativeBtnCreated=false;hideWxLoginBtn();
+      },fail:function(){clearTimeout(_lt);loginInProgress=false;showToast('登录失败')}});
+      return;
+    }
     if(loginBtnBB&&tx>=loginBtnBB.x&&tx<=loginBtnBB.x+loginBtnBB.w&&ty>=loginBtnBB.y&&ty<=loginBtnBB.y+loginBtnBB.h){
       if(loginBtnBB.id==='logout'){logoutUser();showLoginOverlay=false;hideWxLoginBtn();return}
       if(loginBtnBB.id==='guest'){showLoginOverlay=false;privacyCheckOn=false;privacyAgreed=false;return}
       return;}
-    return;
-  }
-  if(showThemePicker){
-    var tw=290,th=380,tx=(W-tw)/2,ty=(H-th)/2;
-    _drawPanel(tx,ty,tw,th,14);
-    var tcx=tx+tw/2;
-    _s();ctx.font='bold 15px sans-serif';ctx.fillStyle='#e2e8f0';ctx.textAlign='center';ctx.fillText('🎭 主题装扮',tcx,ty+26);_r();
-    _drawClose(tx+tw-34,ty);
-    _s();ctx.font='9px sans-serif';ctx.fillStyle='#64748b';ctx.textAlign='center';
-    ctx.fillText('共30套·解锁制·金边已选',tcx,ty+42);_r();
-    themeButtons=[];
-    var dx=tx+12,dy=ty+50,rh=28,gap=2;
-    // 默认色板
-    var sel=(activeTheme<0);
-    ctx.fillStyle=sel?'rgba(251,191,36,0.18)':'rgba(255,255,255,0.04)';
-    ctx.beginPath();ctx.roundRect(dx,dy,tw-24,rh,8);ctx.fill();
-    if(sel){ctx.strokeStyle='#fbbf24';ctx.lineWidth=2.5;ctx.beginPath();ctx.roundRect(dx+2,dy+2,tw-28,rh-4,7);ctx.stroke()}
-    _s();ctx.font='13px sans-serif';ctx.fillStyle=sel?'#fbbf24':'#94a3b8';ctx.textAlign='left';ctx.textBaseline='middle';
-    ctx.fillText((sel?'● ':'  ')+'默认色板',dx+10,dy+rh/2);_r();
-    themeButtons.push({id:-1,x:dx,y:dy,w:tw-24,h:rh});
-    for(var ti=0;ti<DAILY_THEMES.length;ti++){
-      var ty2=dy+rh+gap+ti*(rh+gap);
-      if(ty2+rh>ty+th-12)break;
-      var locked=!isThemeUnlocked(ti),tsel=(ti===activeTheme);
-      var bt=locked?'rgba(255,255,255,0.02)':tsel?'rgba(251,191,36,0.14)':'rgba(255,255,255,0.04)';
-      ctx.fillStyle=bt;ctx.beginPath();ctx.roundRect(dx,ty2,tw-24,rh,8);ctx.fill();
-      if(tsel){ctx.strokeStyle='#fbbf24';ctx.lineWidth=2.5;ctx.beginPath();ctx.roundRect(dx+2,ty2+2,tw-28,rh-4,7);ctx.stroke()}
-      _s();
-      ctx.font='11px sans-serif';
-      ctx.fillStyle=locked?'#4a5568':(tsel?'#fbbf24':'#94a3b8');
-      ctx.textAlign='left';ctx.textBaseline='middle';
-      ctx.fillText((locked?'🔒 ':(tsel?'● ':'  '))+DAILY_THEMES[ti].n,dx+8,ty2+rh/2);
-      ctx.font='8px sans-serif';ctx.fillStyle='#64748b';ctx.textAlign='right';
-      ctx.fillText('Lv.'+THEME_UNLOCK[ti],dx+tw-42,ty2+rh/2);
-      for(var ci=0;ci<4;ci++){
-        ctx.fillStyle=DAILY_THEMES[ti].c[ci];ctx.beginPath();ctx.roundRect(dx+tw-78+ci*14,ty2+7,12,14,5);ctx.fill()
-      }
-      _r();
-      themeButtons.push({id:ti,x:dx,y:ty2,w:tw-24,h:rh});
-    }
     return;
   }
   if(showThemePicker){
@@ -2248,7 +2241,7 @@ function handleTouch(tx,ty){
     if(tb.id==='level'){showLvlPicker=!showLvlPicker;lvlPickerScroll=Math.max(0,(500-level)*lvlRowH-60);return}
     if(tb.id==='shop'){showShopOverlay=!showShopOverlay;shopBuyBB=[];return}
     if(tb.id==='efxToggle'){efxMenuOpen=!efxMenuOpen;return}
-    if(tb.id==='daily'){if(isDailyDone()){showToast('今日已挑战');return}else{startDailyChallenge();return}}
+    if(tb.id==='daily'){if(isDailyDone()){showToast('今日已挑战');return}if(isDailyLevel){cancelDailyChallenge();return}startDailyChallenge();return}
     if(tb.id==='leaderboard'){loadLB();showLB=!showLB;return}
     if(tb.id==='user'){const n=Date.now();if(n-_loginDebounce<400){return};_loginDebounce=n;showLoginOverlay=!showLoginOverlay;if(showLoginOverlay){showLvlPicker=false;showSkinPicker=false;showThemePicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showPrivacyText='';privacyAgreed=false;privacyCheckOn=false;loginInProgress=false;_nativeBtnCreated=false;hideWxLoginBtn()}return}
   }}
@@ -2261,6 +2254,7 @@ function handleTouch(tx,ty){
 // ── 触控：选关列表独立处理 ──
 function _inLvlList(tx,ty){return lvlListRect&&tx>=lvlListRect.x&&tx<=lvlListRect.x+lvlListRect.w&&ty>=lvlListRect.y&&ty<=lvlListRect.y+lvlListRect.h}
 wx.onTouchStart(e=>{
+  e.preventDefault&&e.preventDefault();
   _lastTap=Date.now();
   if(showLvlPicker&&_inLvlList(e.touches[0].clientX,e.touches[0].clientY)){
     lvlPickerTouchOk=true; lvlPickerStartY=e.touches[0].clientY; lvlPickerMoved=0;
@@ -2269,6 +2263,7 @@ wx.onTouchStart(e=>{
   lvlPickerTouchOk=false;
 });
 wx.onTouchMove(e=>{
+  e.preventDefault&&e.preventDefault();
   if(showLvlPicker&&lvlPickerTouchOk){
     const t=e.touches[0]; if(!t)return;
     const dy=t.clientY-(lastTouchY||t.clientY);
@@ -2295,6 +2290,8 @@ wx.onTouchEnd(e=>{
   handleTouch(e.changedTouches[0].clientX,e.changedTouches[0].clientY);
 });
 let lastTouchY=null;
+try{canvas.addEventListener('touchstart',e=>{e.preventDefault()})}catch(e){}
+try{canvas.addEventListener('touchmove',e=>{e.preventDefault()})}catch(e){}
 try{canvas.addEventListener('click',e=>{if(Date.now()-_lastTap<100)return;handleTouch(e.clientX,e.clientY)})}catch(e){}
 // ── 音效 ──
 let audioCtx=null,soundOn=true,clickSfxIdx=0;
@@ -2329,17 +2326,21 @@ function loop(){
   }
   if(efxOn('shake')){if(boardShake>0)boardShake-=0.1}else{boardShake=0}
   if(efxOn('flash')){if(screenFlash>0)screenFlash-=0.07}else{screenFlash=0}
-  render();requestAnimationFrame(loop)
+  try{render()}catch(e){};requestAnimationFrame(loop)
 }
 // ── Math.imul polyfill（极少数旧引擎缺失）──
 if(!Math.imul)Math.imul=function(a,b){var ah=(a>>>16)&0xffff,al=a&0xffff,bh=(b>>>16)&0xffff,bl=b&0xffff;return((al*bl)+(((ah*bl+al*bh)<<16)>>>0)|0)};
+// 🔒 禁止页面缩放/滚动
+try{wx.setPageStyle({style:{overflow:'hidden'}})}catch(e){}
+try{canvas.addEventListener('touchstart',e=>{e.preventDefault()})}catch(e){}
+try{canvas.addEventListener('touchmove',e=>{e.preventDefault()})}catch(e){}
 // ── 启动 ──
 (function init(){
+try{loadNick()}catch(e){console.warn('[unscrew] loadNick failed:',e.message)}
 try{loadGame()}catch(e){console.warn('[unscrew] loadGame failed:',e.message)}
 try{loadSkin()}catch(e){console.warn('[unscrew] loadSkin failed:',e.message)}
 try{loadedTheme()}catch(e){console.warn('[unscrew] loadedTheme failed:',e.message)}
 try{loadCheckin()}catch(e){console.warn('[unscrew] loadCheckin failed:',e.message)}
-try{loadNick()}catch(e){console.warn('[unscrew] loadNick failed:',e.message)}
 try{tutDone=!!wx.getStorageSync('tut_done')}catch(e){}
 try{soundOn=wx.getStorageSync('sound')!=='0'}catch(e){}
 try{clickSfxIdx=parseInt(wx.getStorageSync('sfx_idx'))||0}catch(e){}
