@@ -1836,27 +1836,27 @@ function drawOverlays(){
             style:{left:W/2-70,top:targetY,width:140,height:42,lineHeight:42,
               backgroundColor:'#07c160',color:'#ffffff',textAlign:'center',fontSize:15,borderRadius:21}});
           userInfoBtn.onTap(function(res){
-            console.log('[login] ⚡ ONTAP:',JSON.stringify(res||{}).slice(0,300));
+            console.log('[login] ⚡ ONTAP:',JSON.stringify(res||{}).slice(0,200));
             if(loginInProgress){return;}
             loginInProgress=true;
             var ok=res&&res.errMsg&&res.errMsg.indexOf(':ok')>-1;
-            if(ok){
-              if(res.rawData){
-                try{var u=JSON.parse(res.rawData);setNick(u.nickName||'微信用户',u.avatarUrl||'');showToast('欢迎 '+nickname)}catch(e){}
-              }else if(res.userInfo){
-                setNick(res.userInfo.nickName||'微信用户',res.userInfo.avatarUrl||'');showToast('欢迎 '+nickname);
-              }else{
-                console.log('[login] no userInfo, trying wx.getUserInfo');
-                wx.getUserInfo({success:function(r){var u=r.userInfo;if(u){setNick(u.nickName||'微信用户',u.avatarUrl||'')}},fail:function(e){console.log('[login] getUserInfo fail:',e.errMsg)}});
-              }
+            if(!ok){showToast('授权取消，请重试');loginInProgress=false;return;}
+            // 隐私已resolve，直接调wx.getUserInfo弹出授权框
+            console.log('[login] calling wx.getUserInfo');
+            wx.getUserInfo({success:function(r){
+              console.log('[login] getUserInfo ok:',JSON.stringify(r).slice(0,200));
+              var u=r.userInfo;
+              if(u&&u.nickName){setNick(u.nickName,u.avatarUrl||'');showToast('欢迎 '+nickname)}
+              else{setNick('微信用户','')}
               loadGame();showLoginOverlay=false;
-            }else{
-              showToast('授权取消，请重试');
-            }
-            // 成功后销毁，重置标志让下次能重新创建
-            try{userInfoBtn.destroy()}catch(e){};userInfoBtn=null;
-            _nativeBtnCreated=false;
-            loginInProgress=false;
+              try{userInfoBtn.destroy()}catch(e){};userInfoBtn=null;
+              _nativeBtnCreated=false;loginInProgress=false;
+            },fail:function(e){
+              console.log('[login] getUserInfo fail:',e.errMsg);
+              setNick('微信用户','');loadGame();showLoginOverlay=false;
+              try{userInfoBtn.destroy()}catch(e){};userInfoBtn=null;
+              _nativeBtnCreated=false;loginInProgress=false;
+            }});
           });
         }catch(e){console.log('[login] create err:',e);_nativeBtnCreated=false}
       }
