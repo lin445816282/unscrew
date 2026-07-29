@@ -354,39 +354,42 @@ function saveGame(){
   if(!nickname)return;
   try{
     wx.login({success:function(res){
-      if(!res.code){return}
+      if(!res.code){console.log('[cloud] save: no code');return}
       wx.request({url:'https://www.ct256.cn/neunav/api/unscrew/save',method:'POST',
         header:{'content-type':'application/json'},
         data:{code:res.code,nick:nickname,score:score,level:level,stars:0,efficiency:0},
-        success:function(rsp){},
-        fail:function(e){}
+        success:function(rsp){console.log('[cloud] save rsp:',JSON.stringify(rsp.data).slice(0,300));
+          if(rsp.data&&rsp.data.ok)console.log('[cloud] save ok lv='+level);else console.log('[cloud] save FAILED:',rsp.data)},
+        fail:function(e){console.log('[cloud] save NET FAIL:',JSON.stringify(e))}
       })
-    },fail:function(e){}})
-  }catch(e){}
+    },fail:function(e){console.log('[cloud] wx.login FAIL:',JSON.stringify(e))}})
+  }catch(e){console.log('[cloud] save exception:',e)}
 }
 function loadGame(){
   var localLv=1,localSc=0;
   try{localLv=Math.min(wx.getStorageSync('u_lv')||1,500);localSc=wx.getStorageSync('u_sc')||0;coins=wx.getStorageSync('u_co')||30;const p=wx.getStorageSync('u_pr');if(p){for(const k in p){if(p[k]<0)p[k]=0}props=p}}catch(e){}
   if(!level)level=localLv;if(!score)score=localSc;
-    try{
+  console.log('[cloud] loadGame local lv='+localLv+' sc='+localSc);
+  try{
     wx.login({success:function(res){
-      if(!res.code){return}
+      if(!res.code){console.log('[cloud] load: no code');return}
       wx.request({url:'https://www.ct256.cn/neunav/api/unscrew/load?code='+res.code,method:'GET',
         success:function(rsp){
-                    if(rsp.data&&rsp.data.ok&&rsp.data.data){
+          console.log('[cloud] load response:',JSON.stringify(rsp.data).slice(0,300));
+          if(rsp.data&&rsp.data.ok&&rsp.data.data){
             var d=rsp.data.data;
-            if(d.level>level){level=d.level;wx.setStorageSync('u_lv',level)}
+            if(d.level>level){level=d.level;wx.setStorageSync('u_lv',level);console.log('[cloud] restored lv='+level)}
             if(d.score>score){score=d.score;wx.setStorageSync('u_sc',score)}
             var cl=getCleared(),needRebuild=true;
             for(var ci=1;ci<=d.level;ci++){if(cl.indexOf(ci)<0){needRebuild=true;break}else{needRebuild=false}}
             if(needRebuild){var nc=[];for(var ci=1;ci<=d.level;ci++)nc.push(ci);wx.setStorageSync('cleared',JSON.stringify(nc))}
             if(d.level>localLv){generateLevel();showToast('云端进度已恢复: 第'+d.level+'关')}
-          }else{}
+          }else{console.log('[cloud] load: no data or not ok')}
         },
-        fail:function(e){}
+        fail:function(e){console.log('[cloud] load FAIL:',JSON.stringify(e))}
       })
-    },fail:function(e){}})
-  }catch(e){}
+    },fail:function(e){console.log('[cloud] wx.login FAIL:',JSON.stringify(e))}})
+  }catch(e){console.log('[cloud] load exception:',e)}
 }
 // ── 主题 ──
 function loadSkin(){try{activeSkin=wx.getStorageSync('skin')||'default'}catch(e){}}
@@ -549,11 +552,12 @@ function loadLB(){
     }catch(e){}
   }
   wx.request({url:'https://www.ct256.cn/neunav/api/unscrew/leaderboard',method:'GET',
-    success:function(rsp){if(rsp.data&&rsp.data.ok){lbData=rsp.data.list.map(function(i){
+    success:function(rsp){console.log('[lb] response:',JSON.stringify(rsp.data).slice(0,200));
+      if(rsp.data&&rsp.data.ok){lbData=rsp.data.list.map(function(i){
       var dt=i.created_at?i.created_at.slice(0,10):'';var parts=dt.split('-');var normDate=parts[0]+'-'+(+parts[1])+'-'+(+parts[2]);
       return{nick:i.nick,score:i.score,level:i.level,date:normDate};
     })};lbData.sort(function(a,b){return b.score-a.score});_mergeLocal()},
-    fail:function(){try{lbData=JSON.parse(wx.getStorageSync('lb')||'[]')}catch(e){lbData=[]};_mergeLocal()}
+    fail:function(e){console.log('[lb] request FAILED:',JSON.stringify(e));try{lbData=JSON.parse(wx.getStorageSync('lb')||'[]')}catch(e){lbData=[]};_mergeLocal()}
   })
 }
 function submitLB(){
@@ -581,7 +585,7 @@ function submitLB(){
     wx.request({url:'https://www.ct256.cn/neunav/api/unscrew/submit',method:'POST',
       header:{'content-type':'application/json'},
       data:{code:res.code,nick:nick,score:score,level:level,stars:winStars,efficiency:winEfficiency},
-      success:function(rsp){if(rsp.data&&rsp.data.ok){}loadLB()},
+      success:function(rsp){if(rsp.data&&rsp.data.ok){console.log('LB submitted')}loadLB()},
       fail:function(){loadLB()}
     })
   },fail:function(){loadLB()}})
@@ -786,7 +790,7 @@ function generateLevel(){
   screws.sort((a,b)=>b.layer-a.layer);screws.forEach((s,i)=>s.id=i);
   updateBlocked();
   for(let rr=0;rr<10;rr++){let changed=false;for(const lc of levelColors){if(screws.some(s=>!s.removed&&!s.blocked&&s.color.name===lc.name))continue;const t=screws.find(s=>!s.removed&&s.blocked&&s.color.name===lc.name);if(t){t.blocked=false;t.blockedDepth=0;changed=true}}if(!changed)break;updateBlocked()}
-  totalScrewCount=total;
+  totalScrewCount=total;console.log('[unscrew] level',level,'screws',total,'colors',numColors);
 }
 // ── 求解器 ──
 function isSolvable(){
@@ -842,11 +846,11 @@ function doLightning(){const filled=slots.filter(Boolean);if(filled.length<2||pr
 function doShuffle(){const alive=screws.filter(s=>!s.removed);if(alive.length<2||props.shuffle<=0)return false;props.shuffle--;const colors=alive.map(s=>s.color);for(let i=colors.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[colors[i],colors[j]]=[colors[j],colors[i]]}history.push({screwId:null,slots:slots.map(s=>s?{id:s.id,color:s.color}:null),score,combo,shuffleColors:alive.map((s,i)=>({id:s.id,color:s.color}))});if(history.length>25)history.shift();alive.forEach((s,i)=>{s.color=colors[i]});updateBlocked();return true}
 function useProp(type){if(type==='undo'){if(props.undo>0&&doUndo()){props.undo--;showToast('已撤回')}}else if(type==='bomb'){if(props.bomb>0&&doBomb()){props.bomb--;showToast('炸弹!')}}else if(type==='peek'){doPeek()}else if(type==='lightning'){if(doLightning())showToast('闪电!')}else if(type==='shuffle'){if(doShuffle())showToast('已洗牌')}}
 // ═══════════════════ Canvas 渲染 — 1:1 CSS 翻译 ═══════════════════
-// ═══ 层叠布局：9:16板(自适应贴边) → 槽 → 道具 → 信息 ═══
+// ═══ 层叠布局：9:16板(自适应满宽20px边距) → 槽 → 道具 → 信息 ═══
 const TOP_BAR_H = 195;
-const PAD = Math.max(2, Math.floor(W * 0.008)); // 自适应贴边
+const PAD = 10; // 左右各10px
 const BOARD_W = W - PAD*2; // 撑满宽
-const BOARD_H_RAW = Math.min(Math.round(BOARD_W * 16 / 9), H - TOP_BAR_H - 130);
+const BOARD_H_RAW = Math.min(Math.round(BOARD_W * 16 / 9), H - TOP_BAR_H - 130) - 30;
 const BOARD_H = Math.round(BOARD_H_RAW * 0.80); // 上下各缩10%
 const BOARD_X = (W - BOARD_W) / 2;
 // 槽位 — 等比撑满棋盘宽
@@ -862,7 +866,7 @@ const BOTTOM_H = PROP_BTN + PROP_LABEL + 16;
 // 总内容：板子 + 间距 + 槽 + 间距 + 底部
 const GAP = 8;
 const contentH = BOARD_H + GAP + SLOT_ROW_H + GAP + BOTTOM_H;
-const BOARD_Y = TOP_BAR_H; // 贴紧顶栏
+const BOARD_Y = TOP_BAR_H + Math.max(0, Math.floor((H - TOP_BAR_H - contentH) / 2));
 const SLOT_BAR_Y = BOARD_Y + BOARD_H + GAP;
 const PROPS_Y = SLOT_BAR_Y + SLOT_ROW_H + GAP;
 // ── 星空粒子（初始化时生成，每帧复用） ──
@@ -1832,29 +1836,32 @@ function drawOverlays(){
       // 只创建一次，避免每帧destroy/create导致内部崩溃
       if(!_nativeBtnCreated&&!userInfoBtn){
         _nativeBtnCreated=true;
-                try{
+        console.log('[login] creating native btn at y='+targetY);
+        try{
           userInfoBtn=wx.createUserInfoButton({type:'text',text:'微信一键登录',
             style:{left:W/2-70,top:targetY,width:140,height:42,lineHeight:42,
               backgroundColor:'#07c160',color:'#ffffff',textAlign:'center',fontSize:15,borderRadius:21}});
           userInfoBtn.onTap(function(res){
-                        if(loginInProgress){return;}
+            console.log('[login] ⚡ ONTAP:',JSON.stringify(res||{}).slice(0,500));
+            if(loginInProgress){return;}
             loginInProgress=true;
             var ok=res&&res.errMsg&&res.errMsg.indexOf(':ok')>-1;
             if(!ok){showToast('授权取消，请重试');loginInProgress=false;return;}
             // 直接从createUserInfoButton响应拿用户信息
             var u=null;
-            if(res.userInfo){u=res.userInfo}
-            else if(res.rawData){try{u=JSON.parse(res.rawData)}catch(e){}}
+            if(res.userInfo){u=res.userInfo;console.log('[login] got userInfo:',u.nickName)}
+            else if(res.rawData){try{u=JSON.parse(res.rawData);console.log('[login] parsed rawData:',u.nickName)}catch(e){console.log('[login] rawData parse err:',e)}}
             if(u&&u.nickName){
               setNick(u.nickName,u.avatarUrl||'');showToast('欢迎 '+nickname);
             }else{
-                            showToast('未获取到用户信息，请确认权限已配置');
+              console.log('[login] ❌ 无用户信息！完整响应:',JSON.stringify(res));
+              showToast('未获取到用户信息，请确认权限已配置');
             }
             loadGame();showLoginOverlay=false;
             try{userInfoBtn.destroy()}catch(e){};userInfoBtn=null;
             _nativeBtnCreated=false;loginInProgress=false;
           });
-        }catch(e){_nativeBtnCreated=false}
+        }catch(e){console.log('[login] create err:',e);_nativeBtnCreated=false}
       }
       if(userInfoBtn){try{userInfoBtn.style.top=targetY}catch(e){}}
     }
@@ -2030,14 +2037,14 @@ function handleTouch(tx,ty){
   if(showLoginOverlay){
     // 隐私协议UI — 勾选即同意
     if(!nickname){
-      if(privacyCB&&tx>=privacyCB.x&&tx<=privacyCB.x+privacyCB.w&&ty>=privacyCB.y&&ty<=privacyCB.y+privacyCB.h){privacyCheckOn=!privacyCheckOn;if(privacyCheckOn){privacyAgreed=true;if(_privacyResolve){_privacyResolve({buttonId:'agree',event:'agree'});_privacyResolve=null}}else{privacyAgreed=false}return}
+      if(privacyCB&&tx>=privacyCB.x&&tx<=privacyCB.x+privacyCB.w&&ty>=privacyCB.y&&ty<=privacyCB.y+privacyCB.h){privacyCheckOn=!privacyCheckOn;if(privacyCheckOn){privacyAgreed=true;if(_privacyResolve){console.log('[privacy] resolving');_privacyResolve({buttonId:'agree',event:'agree'});_privacyResolve=null}}else{privacyAgreed=false}console.log('[login] checkbox: privacyAgreed='+privacyAgreed);return}
       if(privacyUserBB&&tx>=privacyUserBB.x&&tx<=privacyUserBB.x+privacyUserBB.w&&ty>=privacyUserBB.y&&ty<=privacyUserBB.y+privacyUserBB.h){showPrivacyText='user';return}
       if(privacyPolicyBB&&tx>=privacyPolicyBB.x&&tx<=privacyPolicyBB.x+privacyPolicyBB.w&&ty>=privacyPolicyBB.y&&ty<=privacyPolicyBB.y+privacyPolicyBB.h){showPrivacyText='privacy';return}
     }
     if(loginCloseBB&&tx>=loginCloseBB.x&&tx<=loginCloseBB.x+loginCloseBB.w&&ty>=loginCloseBB.y&&ty<=loginCloseBB.y+loginCloseBB.h){showLoginOverlay=false;privacyCheckOn=false;privacyAgreed=false;_nativeBtnCreated=false;hideWxLoginBtn();return}
     if(loginBtnBB&&tx>=loginBtnBB.x&&tx<=loginBtnBB.x+loginBtnBB.w&&ty>=loginBtnBB.y&&ty<=loginBtnBB.y+loginBtnBB.h){
       if(loginBtnBB.id==='logout'){logoutUser();showLoginOverlay=false;hideWxLoginBtn();return}
-      if(loginBtnBB.id==='guest'){showLoginOverlay=false;privacyCheckOn=false;privacyAgreed=false;return}
+      if(loginBtnBB.id==='guest'){showLoginOverlay=false;privacyCheckOn=false;privacyAgreed=false;console.log('[unscrew] guest mode');return}
       return;}
     return;
   }
@@ -2137,7 +2144,7 @@ wx.onTouchEnd(e=>{
   handleTouch(e.changedTouches[0].clientX,e.changedTouches[0].clientY);
 });
 let lastTouchY=null;
-try{canvas.addEventListener('click',e=>{if(Date.now()-_lastTap<100)return;handleTouch(e.clientX,e.clientY)})}catch(e){}
+try{canvas.addEventListener('click',e=>{if(Date.now()-_lastTap<100)return;handleTouch(e.clientX,e.clientY)});console.log('[unscrew] mouse fallback added')}catch(e){}
 // ── 音效 ──
 let audioCtx=null,soundOn=true,clickSfxIdx=0;
 try{audioCtx=wx.createWebAudioContext()}catch(e){}
@@ -2177,6 +2184,7 @@ function loop(){
 if(!Math.imul)Math.imul=function(a,b){var ah=(a>>>16)&0xffff,al=a&0xffff,bh=(b>>>16)&0xffff,bl=b&0xffff;return((al*bl)+(((ah*bl+al*bh)<<16)>>>0)|0)};
 // ── 启动 ──
 (function init(){
+try{console.log('[unscrew] W=',W,'H=',H,'board=',BOARD_W,'x',BOARD_H)}catch(e){}
 try{loadGame()}catch(e){console.warn('[unscrew] loadGame failed:',e.message)}
 try{loadSkin()}catch(e){console.warn('[unscrew] loadSkin failed:',e.message)}
 try{loadCheckin()}catch(e){console.warn('[unscrew] loadCheckin failed:',e.message)}
@@ -2188,8 +2196,9 @@ try{bgmOn=wx.getStorageSync('bgm')==='1'}catch(e){}
 try{initAd()}catch(e){console.warn('[unscrew] initAd failed:',e.message)}
 try{generateLevel()}catch(e){console.error('[unscrew] generateLevel failed:',e.message);ctx.fillStyle='#ef4444';ctx.fillRect(0,0,W,60);ctx.fillStyle='#fff';ctx.font='13px sans-serif';ctx.fillText('关卡生成失败: '+e.message,10,25);ctx.fillText('请检查数据后重试',10,45);return}
 // 注册隐私授权：勾选我们的协议 → resolve → 微信放行
-try{wx.onNeedPrivacyAuthorization(function(resolve){_privacyResolve=resolve;showLoginOverlay=true})}catch(e){}
+try{wx.onNeedPrivacyAuthorization(function(resolve){console.log('[privacy] onNeedPrivacyAuthorization');_privacyResolve=resolve;showLoginOverlay=true})}catch(e){console.log('[privacy] register err:',e)}
 requestAnimationFrame(loop);
+console.log('[unscrew] started');
 if(!tutDone){setTimeout(function(){showTutorialOverlay=true;tutIdx=0},400)}
 else{setTimeout(function(){showLoginOverlay=true},400)}
 })()
