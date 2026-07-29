@@ -1975,21 +1975,6 @@ function render(){
 // ── 触控 ──
 let _lastTap=0, _loginDebounce=0;
 function handleTouch(tx,ty){
-  // DEBUG: 看触摸有没有进来
-  var _dbgOverlays=[];
-  if(showWinOverlay)_dbgOverlays.push('win');
-  if(showLoseOverlay)_dbgOverlays.push('lose');
-  if(showLoginOverlay)_dbgOverlays.push('login');
-  if(showLB)_dbgOverlays.push('lb');
-  if(showTutorialOverlay)_dbgOverlays.push('tutorial');
-  if(showSkinPicker)_dbgOverlays.push('skin');
-  if(showShopOverlay)_dbgOverlays.push('shop');
-  if(showLvlPicker)_dbgOverlays.push('lvl');
-  if(showCheckin)_dbgOverlays.push('checkin');
-  if(showPrivacyText)_dbgOverlays.push('privacyText');
-  if(showSfxPicker)_dbgOverlays.push('sfx');
-  if(showShareOverlay)_dbgOverlays.push('share');
-  console.log('[touch] tx='+tx+' ty='+ty+' overlays=['+_dbgOverlays.join(',')+'] nickname='+nickname+' loginInProgress='+loginInProgress+' showLoginOverlay='+showLoginOverlay);
   // 🔧 特效菜单打开时拦截所有点击，不穿透到螺丝
   if(efxMenuOpen){
     for(const b of efxButtons){
