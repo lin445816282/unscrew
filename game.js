@@ -351,41 +351,44 @@ let bgmOn=false, bgmInterval=null, bgmNoteIdx=0;
 // ── 存档（本地 + 云端）──
 function saveGame(){
   try{wx.setStorageSync('u_lv',level);wx.setStorageSync('u_sc',score);wx.setStorageSync('u_co',coins);wx.setStorageSync('u_pr',props)}catch(e){}
-  // 云端存档（仅登录用户）
   if(!nickname)return;
   try{
     wx.login({success:function(res){
+      if(!res.code){console.log('[cloud] save: no code');return}
       wx.request({url:'https://www.ct256.cn/neunav/api/unscrew/save',method:'POST',
+        header:{'content-type':'application/json'},
         data:{code:res.code,nick:nickname,score:score,level:level,stars:0,efficiency:0},
-        success:function(){console.log('[unscrew] cloud save ok')},
-        fail:function(){}
+        success:function(rsp){console.log('[cloud] save ok lv='+level+' sc='+score,'rsp:',JSON.stringify(rsp.data).slice(0,300))},
+        fail:function(e){console.log('[cloud] save FAIL:',JSON.stringify(e))}
       })
-    }})
-  }catch(e){}
+    },fail:function(e){console.log('[cloud] wx.login FAIL:',JSON.stringify(e))}})
+  }catch(e){console.log('[cloud] save exception:',e)}
 }
 function loadGame(){
-  try{level=Math.min(wx.getStorageSync('u_lv')||1,500);score=wx.getStorageSync('u_sc')||0;coins=wx.getStorageSync('u_co')||30;const p=wx.getStorageSync('u_pr');if(p){for(const k in p){if(p[k]<0)p[k]=0}props=p}}catch(e){}
-  // 云端加载
+  var localLv=1,localSc=0;
+  try{localLv=Math.min(wx.getStorageSync('u_lv')||1,500);localSc=wx.getStorageSync('u_sc')||0;coins=wx.getStorageSync('u_co')||30;const p=wx.getStorageSync('u_pr');if(p){for(const k in p){if(p[k]<0)p[k]=0}props=p}}catch(e){}
+  if(!level)level=localLv;if(!score)score=localSc;
+  console.log('[cloud] loadGame local lv='+localLv+' sc='+localSc);
   try{
     wx.login({success:function(res){
+      if(!res.code){console.log('[cloud] load: no code');return}
       wx.request({url:'https://www.ct256.cn/neunav/api/unscrew/load?code='+res.code,method:'GET',
         success:function(rsp){
+          console.log('[cloud] load response:',JSON.stringify(rsp.data).slice(0,300));
           if(rsp.data&&rsp.data.ok&&rsp.data.data){
             var d=rsp.data.data;
-            if(d.level>level){level=d.level;wx.setStorageSync('u_lv',level)}
+            if(d.level>level){level=d.level;wx.setStorageSync('u_lv',level);console.log('[cloud] restored lv='+level)}
             if(d.score>score){score=d.score;wx.setStorageSync('u_sc',score)}
-            // 用云端 level 重建已通关列表，不然选关面板只有第1关
             var cl=getCleared(),needRebuild=true;
             for(var ci=1;ci<=d.level;ci++){if(cl.indexOf(ci)<0){needRebuild=true;break}else{needRebuild=false}}
             if(needRebuild){var nc=[];for(var ci=1;ci<=d.level;ci++)nc.push(ci);wx.setStorageSync('cleared',JSON.stringify(nc))}
-            // 云端关卡高于当前，重新生成
-            if(d.level>1){generateLevel()}
-            console.log('[unscrew] cloud load lv='+d.level+' sc='+d.score)
-          }
-        },fail:function(){}
+            if(d.level>localLv){generateLevel();showToast('云端进度已恢复: 第'+d.level+'关')}
+          }else{console.log('[cloud] load: no data or not ok')}
+        },
+        fail:function(e){console.log('[cloud] load FAIL:',JSON.stringify(e))}
       })
-    }})
-  }catch(e){}
+    },fail:function(e){console.log('[cloud] wx.login FAIL:',JSON.stringify(e))}})
+  }catch(e){console.log('[cloud] load exception:',e)}
 }
 // ── 主题 ──
 function loadSkin(){try{activeSkin=wx.getStorageSync('skin')||'default'}catch(e){}}
