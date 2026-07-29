@@ -644,7 +644,7 @@ let nickname='', avatarUrl='', showLoginOverlay=false, userInfoBtn=null, privacy
 var loginBtnY=0;
 function loadNick(){try{nickname=wx.getStorageSync('nick')||'';avatarUrl=wx.getStorageSync('avatar')||''}catch(e){}}
 function setNick(n,a){nickname=n;avatarUrl=a||'';try{wx.setStorageSync('nick',n);if(a)wx.setStorageSync('avatar',a)}catch(e){}}
-function logoutUser(){nickname='';avatarUrl='';setNick('','');level=1;score=0;coins=30;props={undo:1,bomb:0,peek:0,lightning:0,shuffle:0};try{wx.removeStorageSync('u_lv');wx.removeStorageSync('u_sc');wx.removeStorageSync('u_co');wx.removeStorageSync('u_pr');wx.removeStorageSync('checkin');wx.removeStorageSync('daily_done');wx.removeStorageSync('cleared')}catch(e){};loginInProgress=false;saveGame();showToast('已退出，数据已重置')}
+function logoutUser(){nickname='';avatarUrl='';setNick('','');level=1;score=0;coins=30;props={undo:1,bomb:0,peek:0,lightning:0,shuffle:0};try{wx.removeStorageSync('u_lv');wx.removeStorageSync('u_sc');wx.removeStorageSync('u_co');wx.removeStorageSync('u_pr');wx.removeStorageSync('checkin');wx.removeStorageSync('daily_done');wx.removeStorageSync('cleared')}catch(e){};loginInProgress=false;showLvlPicker=false;showSkinPicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showWinOverlay=false;showLoseOverlay=false;showPrivacyText='';saveGame();showToast('已退出，数据已重置')}
 let _wxBtnTried=false; // 防重复创建
 function showWxLoginBtn(){
   console.log('[login] showWxLoginBtn entered, loginInProgress='+loginInProgress+' userInfoBtn='+!!userInfoBtn+' _wxBtnTried='+_wxBtnTried)
@@ -2122,7 +2122,7 @@ function handleTouch(tx,ty){
     if(tb.id==='efxToggle'){efxMenuOpen=!efxMenuOpen;return}
     if(tb.id==='daily'){if(isDailyDone()){showToast('今日已挑战');return}else{startDailyChallenge();return}}
     if(tb.id==='leaderboard'){loadLB();showLB=!showLB;return}
-    if(tb.id==='user'){const n=Date.now();if(n-_loginDebounce<400){console.log('[login] user btn debounced');return};_loginDebounce=n;showLoginOverlay=!showLoginOverlay;console.log('[login] user btn: showLoginOverlay='+showLoginOverlay+' nickname='+nickname+' userInfoBtn='+!!userInfoBtn);if(showLoginOverlay){privacyAgreed=false;privacyCheckOn=false;loginInProgress=false;_wxBtnTried=false;if(userInfoBtn){try{userInfoBtn.destroy()}catch(e){};userInfoBtn=null}hideWxLoginBtn()}return}
+    if(tb.id==='user'){const n=Date.now();if(n-_loginDebounce<400){console.log('[login] user btn debounced');return};_loginDebounce=n;showLoginOverlay=!showLoginOverlay;console.log('[login] user btn: showLoginOverlay='+showLoginOverlay+' nickname='+nickname+' userInfoBtn='+!!userInfoBtn);if(showLoginOverlay){showLvlPicker=false;showSkinPicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showPrivacyText='';privacyAgreed=false;privacyCheckOn=false;loginInProgress=false;_wxBtnTried=false;if(userInfoBtn){try{userInfoBtn.destroy()}catch(e){};userInfoBtn=null}hideWxLoginBtn()}return}
   }}
   if(paused&&pauseBtnBB&&tx>=pauseBtnBB.x&&tx<=pauseBtnBB.x+pauseBtnBB.w&&ty>=pauseBtnBB.y&&ty<=pauseBtnBB.y+pauseBtnBB.h){paused=false;return}
   if(processing||paused)return;
