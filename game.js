@@ -645,16 +645,21 @@ var loginBtnY=0;
 function loadNick(){try{nickname=wx.getStorageSync('nick')||'';avatarUrl=wx.getStorageSync('avatar')||''}catch(e){}}
 function setNick(n,a){nickname=n;avatarUrl=a||'';try{wx.setStorageSync('nick',n);if(a)wx.setStorageSync('avatar',a)}catch(e){}}
 function logoutUser(){nickname='';avatarUrl='';setNick('','');level=1;score=0;coins=30;props={undo:1,bomb:0,peek:0,lightning:0,shuffle:0};try{wx.removeStorageSync('u_lv');wx.removeStorageSync('u_sc');wx.removeStorageSync('u_co');wx.removeStorageSync('u_pr');wx.removeStorageSync('checkin');wx.removeStorageSync('daily_done');wx.removeStorageSync('cleared')}catch(e){};loginInProgress=false;saveGame();showToast('已退出，数据已重置')}
+let _wxBtnTried=false; // 防重复创建
 function showWxLoginBtn(){
   if(loginInProgress)return;
   if(userInfoBtn){
-    try{userInfoBtn.show()}catch(e){};
+    try{userInfoBtn.show()}catch(e){console.log('[login] show err:',e)}
     return;
   }
+  if(_wxBtnTried)return; // 创建失败过，不再重试
+  _wxBtnTried=true;
   try{
+    console.log('[login] creating button at loginBtnY='+loginBtnY)
     userInfoBtn=wx.createUserInfoButton({type:'text',text:'微信一键登录',
       style:{left:W/2-70,top:loginBtnY||(H/2+65),width:140,height:42,lineHeight:42,
         backgroundColor:'#07c160',color:'#ffffff',textAlign:'center',fontSize:15,borderRadius:21}});
+    console.log('[login] button created:',!!userInfoBtn)
     userInfoBtn.onTap(res=>{
       if(loginInProgress)return;
       loginInProgress=true;
@@ -685,7 +690,7 @@ function showWxLoginBtn(){
         loginInProgress=false;
       }
     });
-  }catch(e){console.log('[login] create button error:',e)}
+  }catch(e){console.log('[login] create button error:',e);_wxBtnTried=false} // 失败后允许重试
 }
 function hideWxLoginBtn(){if(userInfoBtn){try{userInfoBtn.hide()}catch(e){}}}
 // ── 背景音乐 ──
@@ -2042,7 +2047,7 @@ function handleTouch(tx,ty){
       if(privacyUserBB&&tx>=privacyUserBB.x&&tx<=privacyUserBB.x+privacyUserBB.w&&ty>=privacyUserBB.y&&ty<=privacyUserBB.y+privacyUserBB.h){showPrivacyText='user';return}
       if(privacyPolicyBB&&tx>=privacyPolicyBB.x&&tx<=privacyPolicyBB.x+privacyPolicyBB.w&&ty>=privacyPolicyBB.y&&ty<=privacyPolicyBB.y+privacyPolicyBB.h){showPrivacyText='privacy';return}
     }
-    if(loginCloseBB&&tx>=loginCloseBB.x&&tx<=loginCloseBB.x+loginCloseBB.w&&ty>=loginCloseBB.y&&ty<=loginCloseBB.y+loginCloseBB.h){showLoginOverlay=false;privacyCheckOn=false;privacyAgreed=false;if(userInfoBtn){try{userInfoBtn.hide()}catch(e){}}return}
+    if(loginCloseBB&&tx>=loginCloseBB.x&&tx<=loginCloseBB.x+loginCloseBB.w&&ty>=loginCloseBB.y&&ty<=loginCloseBB.y+loginCloseBB.h){showLoginOverlay=false;privacyCheckOn=false;privacyAgreed=false;_wxBtnTried=false;if(userInfoBtn){try{userInfoBtn.hide()}catch(e){}}return}
     if(loginBtnBB&&tx>=loginBtnBB.x&&tx<=loginBtnBB.x+loginBtnBB.w&&ty>=loginBtnBB.y&&ty<=loginBtnBB.y+loginBtnBB.h){
       if(loginBtnBB.id==='logout'){logoutUser();showLoginOverlay=false;hideWxLoginBtn()}
       if(loginBtnBB.id==='guest'){showLoginOverlay=false;privacyCheckOn=false;privacyAgreed=false;console.log('[unscrew] guest mode')}
@@ -2100,7 +2105,7 @@ function handleTouch(tx,ty){
     if(tb.id==='efxToggle'){efxMenuOpen=!efxMenuOpen;return}
     if(tb.id==='daily'){if(isDailyDone()){showToast('今日已挑战');return}else{startDailyChallenge();return}}
     if(tb.id==='leaderboard'){loadLB();showLB=!showLB;return}
-    if(tb.id==='user'){const n=Date.now();if(n-_loginDebounce<400)return;_loginDebounce=n;showLoginOverlay=!showLoginOverlay;if(showLoginOverlay){privacyAgreed=false;privacyCheckOn=false;loginInProgress=false;hideWxLoginBtn()}return}
+    if(tb.id==='user'){const n=Date.now();if(n-_loginDebounce<400)return;_loginDebounce=n;showLoginOverlay=!showLoginOverlay;if(showLoginOverlay){privacyAgreed=false;privacyCheckOn=false;loginInProgress=false;_wxBtnTried=false;hideWxLoginBtn()}return}
   }}
   if(paused&&pauseBtnBB&&tx>=pauseBtnBB.x&&tx<=pauseBtnBB.x+pauseBtnBB.w&&ty>=pauseBtnBB.y&&ty<=pauseBtnBB.y+pauseBtnBB.h){paused=false;return}
   if(processing||paused)return;
