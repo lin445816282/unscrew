@@ -684,8 +684,11 @@ function showWxLoginBtn(){
         }else{
           console.log('[login] cancelled or failed:',res?res.errMsg:'no response');
           showToast('授权取消，请重试');
-          // 不关弹窗，让用户重试
-          if(userInfoBtn){try{userInfoBtn.hide()}catch(e){}}
+          // 不关弹窗，延迟销毁旧按钮让下帧重建（onTap内直接destroy会闪退）
+          var _oldBtn=userInfoBtn;
+          setTimeout(function(){try{_oldBtn.destroy()}catch(e){}},100);
+          userInfoBtn=null;
+          _wxBtnTried=false;
         }
         loginInProgress=false;
       }catch(e){
