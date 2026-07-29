@@ -2050,7 +2050,7 @@ function handleTouch(tx,ty){
   if(showLoginOverlay){
     // 隐私协议UI — 勾选即同意
     if(!nickname){
-      if(privacyCB&&tx>=privacyCB.x&&tx<=privacyCB.x+privacyCB.w&&ty>=privacyCB.y&&ty<=privacyCB.y+privacyCB.h){privacyCheckOn=!privacyCheckOn;privacyAgreed=privacyCheckOn;console.log('[login] checkbox: privacyAgreed='+privacyAgreed);return}
+      if(privacyCB&&tx>=privacyCB.x&&tx<=privacyCB.x+privacyCB.w&&ty>=privacyCB.y&&ty<=privacyCB.y+privacyCB.h){privacyCheckOn=!privacyCheckOn;if(privacyCheckOn){privacyAgreed=true;if(_privacyResolve){console.log('[privacy] resolving');_privacyResolve({buttonId:'agree',event:'agree'});_privacyResolve=null}}else{privacyAgreed=false}console.log('[login] checkbox: privacyAgreed='+privacyAgreed);return}
       if(privacyUserBB&&tx>=privacyUserBB.x&&tx<=privacyUserBB.x+privacyUserBB.w&&ty>=privacyUserBB.y&&ty<=privacyUserBB.y+privacyUserBB.h){showPrivacyText='user';return}
       if(privacyPolicyBB&&tx>=privacyPolicyBB.x&&tx<=privacyPolicyBB.x+privacyPolicyBB.w&&ty>=privacyPolicyBB.y&&ty<=privacyPolicyBB.y+privacyPolicyBB.h){showPrivacyText='privacy';return}
     }
@@ -2208,8 +2208,9 @@ try{clickSfxIdx=parseInt(wx.getStorageSync('sfx_idx'))||0}catch(e){}
 try{bgmOn=wx.getStorageSync('bgm')==='1'}catch(e){}
 try{initAd()}catch(e){console.warn('[unscrew] initAd failed:',e.message)}
 try{generateLevel()}catch(e){console.error('[unscrew] generateLevel failed:',e.message);ctx.fillStyle='#ef4444';ctx.fillRect(0,0,W,60);ctx.fillStyle='#fff';ctx.font='13px sans-serif';ctx.fillText('关卡生成失败: '+e.message,10,25);ctx.fillText('请检查数据后重试',10,45);return}
-// 注册隐私授权处理（微信新规要求）
-try{wx.onNeedPrivacyAuthorization(function(resolve){console.log('[privacy] onNeedPrivacyAuthorization');resolve({buttonId:'agree',event:'agree'})})}catch(e){console.log('[privacy] register err:',e)}
+// 注册隐私授权：勾选我们的协议 → resolve → 微信放行
+var _privacyResolve=null;
+try{wx.onNeedPrivacyAuthorization(function(resolve){console.log('[privacy] onNeedPrivacyAuthorization');_privacyResolve=resolve;showLoginOverlay=true})}catch(e){console.log('[privacy] register err:',e)}
 requestAnimationFrame(loop);
 console.log('[unscrew] started');
 if(!tutDone){setTimeout(function(){showTutorialOverlay=true;tutIdx=0},400)}
