@@ -551,7 +551,7 @@ function loadLB(){
       }
     }catch(e){}
   }
-  wx.request({url:'https://www.ct256.cn/api/unscrew/leaderboard',method:'GET',
+  wx.request({url:'https://www.ct256.cn/neunav/api/unscrew/leaderboard',method:'GET',
     success:function(rsp){if(rsp.data&&rsp.data.ok){lbData=rsp.data.list.map(function(i){
       var dt=i.created_at?i.created_at.slice(0,10):'';var parts=dt.split('-');var normDate=parts[0]+'-'+(+parts[1])+'-'+(+parts[2]);
       return{nick:i.nick,score:i.score,level:i.level,date:normDate};
@@ -581,7 +581,8 @@ function submitLB(){
     }
   }catch(e){}
   wx.login({success:function(res){if(!res.code)return;
-    wx.request({url:'https://www.ct256.cn/api/unscrew/submit',method:'POST',
+    wx.request({url:'https://www.ct256.cn/neunav/api/unscrew/submit',method:'POST',
+      header:{'content-type':'application/json'},
       data:{code:res.code,nick:nick,score:score,level:level,stars:winStars,efficiency:winEfficiency},
       success:function(rsp){if(rsp.data&&rsp.data.ok){console.log('LB submitted')}loadLB()},
       fail:function(){loadLB()}
