@@ -3,3 +3,6 @@
 *_test.js
 project.private.config.json
 *.p1bak
+*.src
+../id_rsa.conf
+../output/

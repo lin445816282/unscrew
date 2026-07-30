@@ -1,0 +1,11 @@
+{
+  "obfuscation": {
+    "name": "代码混淆",
+    "tasks": [
+      {
+        "level": 3,
+        "files": ["game.js"]
+      }
+    ]
+  }
+}
