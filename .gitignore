@@ -2,3 +2,4 @@
 *.bak
 *_test.js
 project.private.config.json
+*.p1bak

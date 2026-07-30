@@ -111,7 +111,7 @@ function drawFace(ctx, face, sx, sy, sr) {
     [sx-eX, sx+eX].forEach(ex => {
       ctx.beginPath(); ctx.arc(ex, eY, eR*1.1, 0, Math.PI*2); ctx.fill();
     });
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = '#ffffff';
     ctx.beginPath(); ctx.arc(sx-eX-sr*0.03, eY-sr*0.03, hR*1.1, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(sx+eX-sr*0.03, eY-sr*0.03, hR*1.1, 0, Math.PI*2); ctx.fill();
   } else if (face === 'chill') {
@@ -132,7 +132,7 @@ function drawFace(ctx, face, sx, sy, sr) {
     [sx-eX, sx+eX].forEach(ex => {
       ctx.beginPath(); ctx.arc(ex, eY, eR*0.9, 0, Math.PI*2); ctx.fill();
     });
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = '#ffffff';
     ctx.beginPath(); ctx.arc(sx-eX-sr*0.02, eY-sr*0.02, hR, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(sx+eX-sr*0.02, eY-sr*0.02, hR, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = '#ffd700';
@@ -143,7 +143,7 @@ function drawFace(ctx, face, sx, sy, sr) {
     [sx-eX, sx+eX].forEach(ex => {
       ctx.beginPath(); ctx.arc(ex, eY, eR*0.95, 0, Math.PI*2); ctx.fill();
     });
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = '#ffffff';
     [sx-eX, sx+eX].forEach(ex => {
       ctx.beginPath(); ctx.arc(ex-sr*0.03, eY-sr*0.04, hR, 0, Math.PI*2); ctx.fill();
     });
@@ -161,7 +161,7 @@ function drawFace(ctx, face, sx, sy, sr) {
       ctx.beginPath(); ctx.arc(ex, eY, eR*0.92, 0, Math.PI*2); ctx.fill();
     });
     // 主高光
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = '#ffffff';
     [sx-eX, sx+eX].forEach(ex => {
       ctx.beginPath(); ctx.arc(ex-sr*0.04, eY-sr*0.05, hR*1.2, 0, Math.PI*2); ctx.fill();
     });
@@ -194,7 +194,7 @@ function drawFace(ctx, face, sx, sy, sr) {
     ctx.beginPath(); ctx.arc(sx-eX, eY, eR*0.35, Math.PI, 0); ctx.stroke();
     // 右眼大瞳孔
     ctx.beginPath(); ctx.arc(sx+eX, eY, eR*0.9, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = '#ffffff';
     ctx.beginPath(); ctx.arc(sx+eX-sr*0.04, eY-sr*0.04, hR, 0, Math.PI*2); ctx.fill();
   } else if (face === 'star') {
     // ⭐ 星星眼：五角星瞳孔+白高光
@@ -209,7 +209,7 @@ function drawFace(ctx, face, sx, sy, sr) {
       }
       ctx.closePath();ctx.fill();
     });
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = '#ffffff';
     [sx-eX, sx+eX].forEach(ex => {
       ctx.beginPath(); ctx.arc(ex-sr*0.02, eY-sr*0.03, hR*0.7, 0, Math.PI*2); ctx.fill();
     });
@@ -333,7 +333,7 @@ let history=[], processing=false, paused=false, pauseBtnBB=null;
 let comboTimer=null, totalScrewCount=0, starMoves=0, winStars=0, winEfficiency=0, dailyBonus=0;
 let props={undo:5,bomb:3,peek:3,lightning:3,shuffle:3};
 let coins=30, particles=[], dyingScrews=[], comboPops=[], slotAnims=[];
-let toastMsg='', toastTimer=null, showWinOverlay=false, showLoseOverlay=false, losePct=0;
+let toastMsg='', toastTimer=null, showWinOverlay=false, showLoseOverlay=false, losePct=0, showPropConfirm=false, propConfirmType='';
 let peekTargets=[], peekTimer=null, propButtons=[], boardShake=0, screenFlash=0;
 // ── 主题系统 ──
 const SKINS=[
@@ -353,30 +353,30 @@ let bgmOn=false, bgmInterval=null, bgmNoteIdx=0;
 // ── 存档（本地 + 云端）──
 function saveGame(){
   try{wx.setStorageSync('u_lv',level);wx.setStorageSync('u_sc',score);wx.setStorageSync('u_co',coins);wx.setStorageSync('u_pr',props)}catch(e){}
-  // 游客不存云端，防止同一 openid 覆盖登录账户数据
-  if(!nickname)return;
+  var nick=nickname,isGuest=0;
+  if(!nick){
+    try{nick=wx.getStorageSync('guest_nick')}catch(e){}
+    if(!nick){nick='萌糖玩家'+Math.random().toString(36).slice(2,8);try{wx.setStorageSync('guest_nick',nick)}catch(e){}}
+    isGuest=1;
+  }
   try{
     wx.login({success:function(res){
-      if(!res.code){return}
+      if(!res.code){console.warn('[save] wx.login no code');return}
       wx.request({url:'https://www.ct256.cn/neunav/api/unscrew/save',method:'POST',
         header:{'content-type':'application/json'},
-        data:{code:res.code,nick:nickname,score:score,level:level,stars:0,efficiency:0},
+        data:{code:res.code,nick:nick,score:score,level:level,stars:0,efficiency:0,is_guest:isGuest},
         success:function(rsp){},
-        fail:function(e){}
+        fail:function(e){console.warn('[save] fail:',JSON.stringify(e))}
       })
-    },fail:function(e){}})
-  }catch(e){}
+    },fail:function(e){console.warn('[save] wx.login fail:',JSON.stringify(e))}})
+  }catch(e){console.warn('[save] err:',e.message)}
 }
 function loadGame(){
   var localLv=1,localSc=0;
   try{localLv=Math.min(wx.getStorageSync('u_lv')||1,500);localSc=wx.getStorageSync('u_sc')||0;coins=wx.getStorageSync('u_co')||30;const p=wx.getStorageSync('u_pr');if(p){for(const k in p){if(p[k]<0)p[k]=0}props=p}}catch(e){}
   var hasNick=!!nickname;
-  if(hasNick){level=localLv;score=localSc}else{
-    level=1;score=0;coins=30;props={undo:5,bomb:3,peek:3,lightning:3,shuffle:3};
-    activeTheme=-1;activeSkin='default';
-    try{wx.removeStorageSync('theme');wx.removeStorageSync('checkin');wx.removeStorageSync('guest_nick');wx.setStorageSync('skin','default');wx.setStorageSync('u_co',30);wx.setStorageSync('u_pr',props)}catch(e){}
-    return;
-  }
+  if(hasNick){
+    level=localLv;score=localSc;
     try{
     wx.login({success:function(res){
       if(!res.code){return}
@@ -399,6 +399,30 @@ function loadGame(){
       })
     },fail:function(e){}})
   }catch(e){}
+  }else{
+    // 🔧 游客也读本地存档（saveGame 已存 u_lv/u_sc/u_co/u_pr）
+    level=localLv;score=localSc;
+    // 🔧 游客也尝试云端加载（同一openid+is_guest=1），跨设备/清缓存后恢复
+    try{
+      wx.login({success:function(res){
+        if(!res.code){return}
+        wx.request({url:'https://www.ct256.cn/neunav/api/unscrew/load?code='+res.code+'&is_guest=1',method:'GET',
+          success:function(rsp){
+            if(rsp.data&&rsp.data.ok&&rsp.data.data){
+              var d=rsp.data.data;
+              if(d.level>level){level=d.level;wx.setStorageSync('u_lv',level)}
+              if(d.score>score){score=d.score;wx.setStorageSync('u_sc',score)}
+              var cl=getCleared(),needRebuild=true;
+              for(var ci=1;ci<=d.level-1;ci++){if(cl.indexOf(ci)<0){needRebuild=true;break}else{needRebuild=false}}
+              if(needRebuild){var nc=[];for(var ci=1;ci<=d.level-1;ci++)nc.push(ci);wx.setStorageSync('cleared',JSON.stringify(nc))}
+              if(d.level>localLv){generateLevel();showToast('云端进度已恢复: 第'+d.level+'关')}
+            }
+          },
+          fail:function(e){}
+        })
+      },fail:function(e){}})
+    }catch(e){}
+  }
 }
 // ── 主题 ──
 function loadSkin(){try{if(!nickname){activeSkin='default';return}activeSkin=wx.getStorageSync('skin')||'default'}catch(e){}}
@@ -406,7 +430,7 @@ function setSkin(sid){activeSkin=sid;try{wx.setStorageSync('skin',sid)}catch(e){
 function getSkin(){if(activeTheme>=0){var ts=getThemeSkin();if(ts)return ts}return SKINS.find(s=>s.id===activeSkin)||SKINS[0]}
 // ── 每日签到 ──
 function loadCheckin(){try{const d=wx.getStorageSync('checkin');if(d){ckData=d}}catch(e){}}
-function getToday(){const d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()}
+function getToday(){var d=new Date();var m=d.getMonth()+1;var day=d.getDate();return d.getFullYear()+'-'+(m<10?'0'+m:m)+'-'+(day<10?'0'+day:day)}
 function doCheckin(){
   const today=getToday();
   if(ckData.lastDate===today)return;
@@ -425,40 +449,40 @@ function doCheckin(){
   saveGame();
 }
 // ── 商店 ──
-const SHOP_ITEMS=[{id:'undo',icon:'↩️',name:'撤回',desc:'撤回一步',price:10,qty:5},{id:'bomb',icon:'💣',name:'炸弹',desc:'清空收集槽',price:10,qty:3},{id:'peek',icon:'👁️',name:'透视',desc:'高亮可点糖果3秒',price:10,qty:3},{id:'lightning',icon:'⚡',name:'闪电',desc:'消除槽内最多颜色×2',price:15,qty:3},{id:'shuffle',icon:'🔀',name:'洗牌',desc:'随机重排棋盘颜色',price:20,qty:3}];
+const SHOP_ITEMS=[{id:'undo',icon:'↩️',name:'撤回',desc:'撤回一步',price:10,qty:5},{id:'bomb',icon:'💣',name:'炸弹',desc:'移除收集槽最后1个',price:10,qty:3},{id:'peek',icon:'👁️',name:'透视',desc:'高亮可点糖果3秒',price:10,qty:3},{id:'lightning',icon:'⚡',name:'闪电',desc:'消除槽内最多颜色×2',price:15,qty:3},{id:'shuffle',icon:'🔀',name:'洗牌',desc:'随机重排棋盘颜色',price:20,qty:3}];
 let showShopOverlay=false;
 function buyItem(id,price,qty){if(coins<price){showToast('金币不足');return}coins-=price;props[id]+=qty;saveGame();showToast('购买成功! +'+qty+' '+id)}
 // ── 主题装扮系统（30套·中央美院风）──
 const DAILY_THEMES=[
-{n:"水墨丹青",c:["#1a1a1a","#444","#777","#aaa","#d0d0d0","#f0f0f0"],bt:"#f5f0e8",bb:"#d5d0c8",a:"#333"},
-{n:"敦煌飞天",c:["#d4a574","#8b4513","#cd853f","#f4a460","#deb887","#daa520"],bt:"#2d1b0e",bb:"#1a0f08",a:"#f59e0b"},
-{n:"青花瓷韵",c:["#1e3a5f","#2c5f8a","#4a90d9","#8bb8ea","#e8ddd0","#c8d6e5"],bt:"#f5f0e8",bb:"#d4c8b8",a:"#1e3a5f"},
-{n:"故宫朱红",c:["#c41e3a","#8b0000","#daa520","#8b6914","#f5f5dc","#d4c5a0"],bt:"#1a0a0a",bb:"#0d0505",a:"#ffd700"},
-{n:"青铜时代",c:["#4a7c59","#6b8e5a","#8f9779","#b8860b","#cd7f32","#daa520"],bt:"#1a2a1a",bb:"#0d1a0d",a:"#cd7f32"},
-{n:"唐三彩韵",c:["#c8a45c","#5b8c5a","#e8d5b7","#d4a574","#8b6914","#f5deb3"],bt:"#2d2010",bb:"#1a1008",a:"#c8a45c"},
-{n:"景泰蓝彩",c:["#1a3a6a","#2a5a9a","#40e0d0","#b8860b","#c0c0c0","#fff8dc"],bt:"#0a1525",bb:"#050a15",a:"#40e0d0"},
-{n:"剪纸窗花",c:["#cc0000","#e8302a","#fff","#f0f0f0","#000","#333"],bt:"#faf0e6",bb:"#e8d8c8",a:"#cc0000"},
-{n:"京剧脸谱",c:["#e60012","#000","#fff","#ffd700","#4a90d9","#2ecc71"],bt:"#2d0000",bb:"#1a0000",a:"#ffd700"},
-{n:"丝绸之茶",c:["#d4c4a8","#c8b088","#8b7355","#6b5335","#4a7c59","#2d5a2d"],bt:"#f5f0e0",bb:"#d4c8b0",a:"#8b7355"},
-{n:"竹林清风",c:["#2d5a2d","#3d6b3d","#4a7c4a","#6b8e6b","#8fbc8f","#b8d4b8"],bt:"#1a2a1a",bb:"#0d1a0d",a:"#2d5a2d"},
-{n:"古琴雅韵",c:["#3d2010","#5a3520","#8b6914","#c8a45c","#f5f0e0","#d4c8b0"],bt:"#1a0f08",bb:"#0d0805",a:"#8b6914"},
-{n:"茶道禅意",c:["#4a7c3a","#6b8e5a","#8fbc7a","#c8d4b0","#d4c4a0","#b8a880"],bt:"#f0ede0",bb:"#d8d0c0",a:"#4a7c3a"},
-{n:"苏州园林",c:["#3a7a5a","#5a9a7a","#c8d8c0","#e8f0e0","#888","#aaa"],bt:"#e8f0e0",bb:"#c8d8c0",a:"#3a7a5a"},
+{n:"水墨丹青",c:["#1a1a1a","#444544","#777576","#b0aca0","#e63946","#457b9d"],bt:"#f5f0e8",bb:"#d5d0c8",a:"#333333"},
+{n:"敦煌飞天",c:["#d4a574","#8b4513","#cd853f","#f4a460","#2a9d8f","#e9c46a"],bt:"#2d1b0e",bb:"#1a0f08",a:"#f59e0b"},
+{n:"青花瓷韵",c:["#1e3a5f","#2c5f8a","#4a90d9","#e8ddd0","#e76f51","#f4a261"],bt:"#f5f0e8",bb:"#d4c8b8",a:"#1e3a5f"},
+{n:"故宫朱红",c:["#c41e3a","#8b0000","#daa520","#f5f5dc","#2a9d8f","#1a1a2e"],bt:"#1a0a0a",bb:"#0d0505",a:"#ffd700"},
+{n:"青铜时代",c:["#4a7c59","#6b8e5a","#b8860b","#daa520","#e63946","#457b9d"],bt:"#1a2a1a",bb:"#0d1a0d",a:"#cd7f32"},
+{n:"唐三彩韵",c:["#c8a45c","#5b8c5a","#e8d5b7","#d4a574","#457b9d","#e76f51"],bt:"#2d2010",bb:"#1a1008",a:"#c8a45c"},
+{n:"景泰蓝彩",c:["#1a3a6a","#2a5a9a","#40e0d0","#c1c1c0","#e63946","#f4a261"],bt:"#0a1525",bb:"#050a15",a:"#40e0d0"},
+{n:"剪纸窗花",c:["#cc0000","#fffefe","#f1f0f0","#000100","#e9c46a","#2a9d8f"],bt:"#faf0e6",bb:"#e8d8c8",a:"#cc0000"},
+{n:"京剧脸谱",c:["#e60012","#000100","#fffefe","#ffd700","#4a90d9","#2ecc71"],bt:"#2d0000",bb:"#1a0000",a:"#ffd700"},
+{n:"丝绸之茶",c:["#d4c4a8","#c8b088","#8b7355","#4a7c59","#457b9d","#e76f51"],bt:"#f5f0e0",bb:"#d4c8b0",a:"#8b7355"},
+{n:"竹林清风",c:["#2d5a2d","#3d6b3d","#4a7c4a","#6b8e6b","#e9c46a","#e76f51"],bt:"#1a2a1a",bb:"#0d1a0d",a:"#2d5a2d"},
+{n:"古琴雅韵",c:["#3d2010","#5a3520","#8b6914","#f5f0e0","#2a9d8f","#e63946"],bt:"#1a0f08",bb:"#0d0805",a:"#8b6914"},
+{n:"茶道禅意",c:["#4a7c3a","#6b8e5a","#8fbc7a","#d4c4a0","#457b9d","#e76f51"],bt:"#f0ede0",bb:"#d8d0c0",a:"#4a7c3a"},
+{n:"苏州园林",c:["#3a7a5a","#5a9a7a","#c8d8c0","#898888","#e76f51","#e9c46a"],bt:"#e8f0e0",bb:"#c8d8c0",a:"#3a7a5a"},
 {n:"敦煌藻井",c:["#1a2a5a","#2a4a8a","#c8a020","#e8c040","#8b1a1a","#c84040"],bt:"#0a0a20",bb:"#050515",a:"#e8c040"},
-{n:"绣球花开",c:["#7b2d8e","#9b4dae","#c8a0d8","#4a90d9","#e8b8d0","#fff"],bt:"#2d1a3a",bb:"#1a0d25",a:"#9b4dae"},
-{n:"桃花源记",c:["#e8a0b8","#f0c0d0","#4a7a3a","#6b9a5a","#f5deb3","#d4c4a0"],bt:"#faf0f0",bb:"#e8d8d8",a:"#e8a0b8"},
+{n:"绣球花开",c:["#7b2d8e","#9b4dae","#c8a0d8","#fffefe","#e9c46a","#2a9d8f"],bt:"#2d1a3a",bb:"#1a0d25",a:"#9b4dae"},
+{n:"桃花源记",c:["#e8a0b8","#f0c0d0","#4a7a3a","#6b9a5a","#457b9d","#e9c46a"],bt:"#faf0f0",bb:"#e8d8d8",a:"#e8a0b8"},
 {n:"荷塘月色",c:["#1a2a4a","#2a3a6a","#e8a0c0","#f0c0d8","#4a7a3a","#6b9a5a"],bt:"#0a0a20",bb:"#050515",a:"#e8a0c0"},
 {n:"梅兰竹菊",c:["#c84060","#7b4a9e","#3a7a3a","#e8c040","#f5f0e0","#d4c8b0"],bt:"#faf5f0",bb:"#e8ddd0",a:"#c84060"},
-{n:"星空幻想",c:["#1a1a4a","#2a2a6a","#4a2a8a","#c8a0e0","#f0d8ff","#e8c840"],bt:"#0a0a20",bb:"#050515",a:"#c8a0e0"},
-{n:"极光之舞",c:["#00b894","#00cec9","#6c5ce7","#a29bfe","#0984e3","#74b9ff"],bt:"#0a1525",bb:"#050a15",a:"#00cec9"},
+{n:"星空幻想",c:["#1a1a4a","#2a2a6a","#4a2a8a","#c8a0e0","#e9c46a","#e63946"],bt:"#0a0a20",bb:"#050515",a:"#c8a0e0"},
+{n:"极光之舞",c:["#00b894","#00cec9","#6c5ce7","#a29bfe","#e63946","#f4d35e"],bt:"#0a1525",bb:"#050a15",a:"#00cec9"},
 {n:"深海秘境",c:["#0a3a5a","#1a5a8a","#e87040","#ffa070","#40c8c0","#80e8e0"],bt:"#050a20",bb:"#020815",a:"#40c8c0"},
-{n:"热带雨林",c:["#1a4a1a","#2a6a2a","#6b8e3a","#8fbc5a","#c84040","#e87040"],bt:"#0a1a0a",bb:"#050d05",a:"#6b8e3a"},
-{n:"沙漠绿洲",c:["#c8a060","#d4b870","#e8d0a0","#40a0a0","#60c0c0","#2a6a4a"],bt:"#f5e0c0",bb:"#d4c0a0",a:"#40a0a0"},
-{n:"冰雪奇缘",c:["#a0d8f0","#c0e8ff","#e0f0ff","#80c0e8","#60a8d8","#4088c0"],bt:"#e8f4ff",bb:"#c8ddf0",a:"#4088c0"},
-{n:"樱花物语",c:["#f0a0b8","#f8c0d0","#f8d8e0","#4a8a4a","#6aaa6a","#fff"],bt:"#fff0f5",bb:"#f0d8e0",a:"#f0a0b8"},
-{n:"薰衣草田",c:["#7b4a9e","#9b6abe","#c8a0d8","#4a8a4a","#6aaa6a","#e8d8f0"],bt:"#2d1a3a",bb:"#1a0d25",a:"#9b6abe"},
-{n:"玫瑰花园",c:["#c82040","#e84060","#f06080","#4a1a1a","#6a2a2a","#f0d0d8"],bt:"#2d0a10",bb:"#1a0508",a:"#e84060"},
-{n:"赛博朋克",c:["#ff007f","#00f0ff","#7b00ff","#ffd700","#1a1a2e","#0a0a15"],bt:"#0a0a15",bb:"#05050a",a:"#ff007f"},
+{n:"热带雨林",c:["#1a4a1a","#2a6a2a","#6b8e3a","#8fbc5a","#e63946","#e9c46a"],bt:"#0a1a0a",bb:"#050d05",a:"#6b8e3a"},
+{n:"沙漠绿洲",c:["#c8a060","#d4b870","#e8d0a0","#40a0a0","#e63946","#7b4a9e"],bt:"#f5e0c0",bb:"#d4c0a0",a:"#40a0a0"},
+{n:"冰雪奇缘",c:["#a0d8f0","#c0e8ff","#80c0e8","#4088c0","#e76f51","#e9c46a"],bt:"#e8f4ff",bb:"#c8ddf0",a:"#4088c0"},
+{n:"樱花物语",c:["#f0a0b8","#f8c0d0","#4a8a4a","#fffefe","#457b9d","#e9c46a"],bt:"#fff0f5",bb:"#f0d8e0",a:"#f0a0b8"},
+{n:"薰衣草田",c:["#7b4a9e","#9b6abe","#c8a0d8","#4a8a4a","#e9c46a","#e76f51"],bt:"#2d1a3a",bb:"#1a0d25",a:"#9b6abe"},
+{n:"玫瑰花园",c:["#c82040","#e84060","#f06080","#f0d0d8","#2a9d8f","#e9c46a"],bt:"#2d0a10",bb:"#1a0508",a:"#e84060"},
+{n:"赛博朋克",c:["#ff007f","#00f0ff","#7b00ff","#ffd700","#ff4500","#00ff88"],bt:"#0a0a15",bb:"#05050a",a:"#ff007f"},
 {n:"霓虹都市",c:["#ff1493","#00ffff","#ff4500","#7fff00","#ffd700","#9400d3"],bt:"#0a0a1a",bb:"#050510",a:"#ff1493"}
 ];
 const THEME_UNLOCK=[20,40,60,70,80,90,100,110,120,130,140,150,155,160,165,170,175,180,185,190,195,200,205,210,215,220,225,230,235,240];
@@ -473,8 +497,9 @@ function setTheme(i){
 }
 function makeThemeColor(hex,i){
   var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
-  var lr=Math.min(255,r+60),lg=Math.min(255,g+60),lb=Math.min(255,b+60);
-  return{name:hex,hex:hex,light:'#'+lr.toString(16).padStart(2,'0')+lg.toString(16).padStart(2,'0')+lb.toString(16).padStart(2,'0'),face:['bunny','shy','angry','cool','wow','silly'][i%6],pattern:['crosshatch','diagonal','dots','vstripes','concentric','checker'][i%6]}
+  // 混合 40% 白色，保色相不跑偏
+  var lr=Math.round(r*0.6+255*0.4),lg=Math.round(g*0.6+255*0.4),lb=Math.round(b*0.6+255*0.4);
+  return{name:hex,hex:hex,light:'#'+((1<<24)+(lr<<16)+(lg<<8)+lb).toString(16).slice(1),face:['bunny','shy','angry','cool','wow','silly'][i%6],pattern:['crosshatch','diagonal','dots','vstripes','concentric','checker'][i%6]}
 }
 function getThemeColors(){if(activeTheme<0||activeTheme>=DAILY_THEMES.length)return COLORS;return DAILY_THEMES[activeTheme].c.map(function(h,i){return makeThemeColor(h,i)})}
 function getThemeSkin(){
@@ -528,7 +553,7 @@ function randomHats(){
 }
 function drawHat(ctx,hx,hy,hr,style,color){
   ctx.save();
-  const r=hr*0.52,d=color.hex,l=color.light,s='#2d1b0e',w='#fff';
+  const r=hr*0.52,d=color.hex,l=color.light,s='#2d1b0e',w='#ffffff';
   ctx.translate(hx,hy-r*0.15);
   switch(style){
     case 'beret': // 🎨 法式贝雷帽
@@ -619,26 +644,30 @@ let showShareOverlay=false;
 function generateShareCard(){showShareOverlay=true;showToast('📤 用微信分享给好友')}
 // ── 排行榜 ──
 let showLB=false, lbData=[], lbPeriod='all', _fromWinOverlay=false;
+let lbScroll=0, lbScrollStartY=0, lbScrollDragging=false, lbScrollMoved=0;
 function loadLB(){
-  function _mergeLocal(){
-    try{
-      var locals=JSON.parse(wx.getStorageSync('lb_local')||'[]');
-      if(locals.length>0){
-        locals.forEach(function(l){lbData.push(l)});
+  wx.request({url:'https://www.ct256.cn/neunav/api/unscrew/leaderboard?period='+lbPeriod+'&limit=50',method:'GET',
+    success:function(rsp){
+      if(rsp.data&&rsp.data.ok&&rsp.data.list){
+        lbData=rsp.data.list.map(function(i){
+          return{nick:i.nick,score:i.score,level:i.level,date:(i.created_at||'').slice(0,10)};
+        });
         lbData.sort(function(a,b){return b.score-a.score});
       }
-    }catch(e){}
-  }
-  wx.request({url:'https://www.ct256.cn/neunav/api/unscrew/leaderboard',method:'GET',
-    success:function(rsp){if(rsp.data&&rsp.data.ok){lbData=rsp.data.list.map(function(i){
-      var dt=i.created_at?i.created_at.slice(0,10):'';var parts=dt.split('-');var normDate=parts[0]+'-'+(+parts[1])+'-'+(+parts[2]);
-      return{nick:i.nick,score:i.score,level:i.level,date:normDate};
-    })};lbData.sort(function(a,b){return b.score-a.score})},
-    fail:function(){try{lbData=JSON.parse(wx.getStorageSync('lb')||'[]')}catch(e){lbData=[]};_mergeLocal()}
+    },
+    fail:function(e){
+      // 离线兜底：读本地缓存
+      try{lbData=JSON.parse(wx.getStorageSync('lb_local')||'[]')}catch(ex){lbData=[]}
+    }
   })
 }
 function submitLB(){
-  const nick=nickname||'萌糖玩家';
+  var nick=nickname,isGuest=0;
+  if(!nick){
+    try{nick=wx.getStorageSync('guest_nick')}catch(e){}
+    if(!nick){nick='萌糖玩家'+Math.random().toString(36).slice(2,8);try{wx.setStorageSync('guest_nick',nick)}catch(e){}}
+    isGuest=1;
+  }
   const entry={nick:nick,score:score,level:level,stars:winStars,efficiency:winEfficiency,date:getToday()};
   // 本地兜底：同用户只存最高分记录
   try{
@@ -661,7 +690,7 @@ function submitLB(){
   wx.login({success:function(res){if(!res.code)return;
     wx.request({url:'https://www.ct256.cn/neunav/api/unscrew/submit',method:'POST',
       header:{'content-type':'application/json'},
-      data:{code:res.code,nick:nick,score:score,level:level,stars:winStars,efficiency:winEfficiency},
+      data:{code:res.code,nick:nick,score:score,level:level,stars:winStars,efficiency:winEfficiency,is_guest:isGuest},
       success:function(rsp){if(rsp.data&&rsp.data.ok){}loadLB()},
       fail:function(){loadLB()}
     })
@@ -727,7 +756,7 @@ let nickname='', avatarUrl='', showLoginOverlay=false, userInfoBtn=null, privacy
 var loginBtnY=0, _nativeBtnCreated=false, _privacyResolve=null, _loginCanvasBB=null;
 function loadNick(){try{nickname=wx.getStorageSync('nick')||'';avatarUrl=wx.getStorageSync('avatar')||''}catch(e){}}
 function setNick(n,a){nickname=n;avatarUrl=a||'';try{wx.setStorageSync('nick',n);if(a)wx.setStorageSync('avatar',a)}catch(e){}}
-function logoutUser(){var oldNick=nickname;level=1;score=0;coins=30;props={undo:1,bomb:0,peek:0,lightning:0,shuffle:0};activeTheme=-1;isDailyLevel=false;dailyTheme=null;screwHats={};dailyBonus=0;try{wx.removeStorageSync('u_lv');wx.removeStorageSync('u_sc');wx.removeStorageSync('u_co');wx.removeStorageSync('u_pr');wx.removeStorageSync('theme');wx.removeStorageSync('checkin');wx.removeStorageSync('daily_done');wx.removeStorageSync('cleared');wx.removeStorageSync('guest_nick');wx.setStorageSync('u_lv',1)}catch(e){};if(oldNick){try{wx.login({success:function(res){if(!res.code)return;wx.request({url:'https://www.ct256.cn/neunav/api/unscrew/save',method:'POST',header:{'content-type':'application/json'},data:{code:res.code,nick:oldNick,score:0,level:1,stars:1,efficiency:0}})}})}catch(e){}};nickname='';avatarUrl='';setNick('','');loginInProgress=false;showLvlPicker=false;showSkinPicker=false;showThemePicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showWinOverlay=false;showLoseOverlay=false;showPrivacyText='';_nativeBtnCreated=false;_loginCanvasBB=null;hideWxLoginBtn();generateLevel();showToast('已退出，数据已重置')}
+function logoutUser(){var oldNick=nickname;nickname='';avatarUrl='';setNick('','');loginInProgress=false;level=1;score=0;coins=30;props={undo:5,bomb:3,peek:3,lightning:3,shuffle:3};activeTheme=-1;activeSkin='default';isDailyLevel=false;dailyTheme=null;screwHats={};dailyBonus=0;showLvlPicker=false;showSkinPicker=false;showThemePicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showWinOverlay=false;showLoseOverlay=false;showPrivacyText='';_nativeBtnCreated=false;_loginCanvasBB=null;hideWxLoginBtn();try{wx.removeStorageSync('u_lv');wx.removeStorageSync('u_sc');wx.removeStorageSync('u_co');wx.removeStorageSync('u_pr');wx.removeStorageSync('guest_nick');wx.removeStorageSync('cleared');wx.removeStorageSync('checkin');wx.removeStorageSync('daily_done');wx.setStorageSync('u_lv',1);wx.setStorageSync('skin','default')}catch(e){};generateLevel();showToast('已退出，数据已重置')}
 // ═══════ 登录按钮：每次勾选时全新创建，用完就毁，不hide/show ═══════
 function showWxLoginBtn(){} // 占位，已废弃
 function hideWxLoginBtn(){if(userInfoBtn){try{userInfoBtn.hide()}catch(e){}}}
@@ -762,7 +791,7 @@ function spawnComboPop(cx,cy,txt,bonusVal,tier){
   // 金色粒子雨（减量防卡顿）
   if(tier>=1){
     spawnParticles(cx,cy-10,'#fbbf24',6);
-    spawnParticles(cx,cy-10,'#fff',3);
+    spawnParticles(cx,cy-10,'#ffffff',3);
   }
   // 音效+震动
   if(tier>=2){
@@ -922,7 +951,8 @@ function doBomb(){if(slots.filter(Boolean).length===0)return false;const last=sl
 function doPeek(){const targets=screws.filter(s=>!s.removed&&s.blocked);if(targets.length===0||props.peek<=0)return false;props.peek--;peekTargets=targets.map(t=>t.id);sfxPeek();if(peekTimer)clearTimeout(peekTimer);peekTimer=setTimeout(()=>{peekTargets=[]},3000);return true}
 function doLightning(){const filled=slots.filter(Boolean);if(filled.length<2||props.lightning<=0)return false;props.lightning--;const groups={};filled.forEach(s=>{const k=s.color.name;if(!groups[k])groups[k]=[];groups[k].push(s)});let target=null;for(const k in groups){if(groups[k].length>=2){target=groups[k];break}}if(!target)return false;while(target.length>0&&slots.filter(Boolean).length>0){const idx=slots.findIndex(sl=>sl&&sl.color.name===target[0].color.name);if(idx>=0)slots.splice(idx,1);target.shift()}updateBlocked();return true}
 function doShuffle(){const alive=screws.filter(s=>!s.removed);if(alive.length<2||props.shuffle<=0)return false;props.shuffle--;const colors=alive.map(s=>s.color);for(let i=colors.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[colors[i],colors[j]]=[colors[j],colors[i]]}history.push({screwId:null,slots:slots.map(s=>s?{id:s.id,color:s.color}:null),score,combo,shuffleColors:alive.map((s,i)=>({id:s.id,color:s.color}))});if(history.length>25)history.shift();alive.forEach((s,i)=>{s.color=colors[i]});updateBlocked();return true}
-function useProp(type){if(type==='undo'){if(props.undo>0&&doUndo()){props.undo--;showToast('已撤回')}}else if(type==='bomb'){if(props.bomb>0&&doBomb()){props.bomb--;showToast('炸弹!')}}else if(type==='peek'){doPeek()}else if(type==='lightning'){if(doLightning())showToast('闪电!')}else if(type==='shuffle'){if(doShuffle())showToast('已洗牌')}}
+function useProp(type){if(type==='undo'){if(props.undo<=0)return;showPropConfirm=true;propConfirmType='undo';return}else if(type==='bomb'){if(props.bomb<=0)return;showPropConfirm=true;propConfirmType='bomb';return}else if(type==='peek'){doPeek()}else if(type==='lightning'){if(props.lightning<=0)return;showPropConfirm=true;propConfirmType='lightning';return}else if(type==='shuffle'){if(props.shuffle<=0)return;showPropConfirm=true;propConfirmType='shuffle';return}}
+function confirmProp(){var t=propConfirmType;showPropConfirm=false;if(t==='undo'){if(props.undo>0&&doUndo()){props.undo--;showToast('已撤回')}}else if(t==='bomb'){if(props.bomb>0&&doBomb()){props.bomb--;showToast('炸弹!')}}else if(t==='lightning'){if(doLightning())showToast('闪电!')}else if(t==='shuffle'){if(doShuffle())showToast('已洗牌')}}
 // ═══════════════════ Canvas 渲染 — 1:1 CSS 翻译 ═══════════════════
 // ═══ 层叠布局：9:16板(自适应贴边) → 槽 → 道具 → 信息 ═══
 const TOP_BAR_H = 195;
@@ -1200,8 +1230,18 @@ function drawSlots(){
       ctx.fillStyle='rgba(0,0,0,0.18)';ctx.beginPath();ctx.arc(dx,dy+dotR*0.15,dotR*1.05,0,Math.PI*2);ctx.fill();
       // 主体渐变
       const cl=s.color||COLORS[0];
+      var useHex=cl.hex||'#888888',useLight=cl.light||'#ffffff';
+      // 🔧 槽内螺丝底光晕：仅深色螺丝加白底（亮度<100），浅色不加避免反而不显
+      var lum=(parseInt(useHex.slice(1,3),16)*299+parseInt(useHex.slice(3,5),16)*587+parseInt(useHex.slice(5,7),16)*114)/1000;
+      if(lum<100){ctx.fillStyle='rgba(255,255,255,0.30)';ctx.beginPath();ctx.arc(dx,dy,dotR,0,Math.PI*2);ctx.fill();}
       const dg=ctx.createRadialGradient(dx-dotR*0.3,dy-dotR*0.3,0,dx-dotR*0.3,dy-dotR*0.3,dotR*1.84);
-      dg.addColorStop(0,cl.light||'#fff');dg.addColorStop(0.5,cl.hex||'#888');dg.addColorStop(1,shadeColor(cl.hex||'#666',-30));
+      // 白色/近白螺丝：渐变改为暗色系，避免纯白看不见
+      if(useHex==='#ffffff'||useHex==='#f0f0f0'||useHex==='#f5f5dc'||useHex==='#f5f0e0'||useHex==='#f5deb3'){
+        useHex='#b2b2b2';useLight='#d9d9d9';
+      }else if(useLight==='#ffffff'){
+        useLight=shadeColor(useHex,-10);
+      }
+      dg.addColorStop(0,useLight);dg.addColorStop(0.5,useHex);dg.addColorStop(1,shadeColor(useHex,-30));
       ctx.fillStyle=dg;ctx.beginPath();ctx.arc(dx,dy,dotR,0,Math.PI*2);ctx.fill();
       // 内高光 (box-shadow inset) — match web 3px+6px inset
       const ssig=ctx.createLinearGradient(dx,dy-dotR,dx,dy-dotR*0.85);
@@ -1214,7 +1254,7 @@ function drawSlots(){
       ctx.restore(); // end popIn scale
     }
   }
-  }catch(e){}
+  }catch(e){console.error('[unscrew] drawSlots:',e.message||e)}
 }
 function drawPropsBar(){
   const _s=ctx.save.bind(ctx),_r=ctx.restore.bind(ctx);
@@ -1244,7 +1284,7 @@ function drawPropsBar(){
     ctx.fillStyle=count===0?'rgba(255,255,255,0.06)':'#fbbf24';
     ctx.beginPath();ctx.arc(bx+btnW-badgeR+2, propY+badgeR-1, badgeR, 0, Math.PI*2);ctx.fill();
     if(count>0){ctx.strokeStyle='rgba(0,0,0,0.2)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(bx+btnW-badgeR+2, propY+badgeR-1, badgeR, 0, Math.PI*2);ctx.stroke();}
-    _s();ctx.font='bold 9px sans-serif';ctx.fillStyle=count===0?'#555':'#0c0c1d';
+    _s();ctx.font='bold 9px sans-serif';ctx.fillStyle=count===0?'#555555':'#0c0c1d';
     ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(count, bx+btnW-badgeR+2, propY+badgeR+1);_r();
   });
 }
@@ -1261,7 +1301,7 @@ let lbTabBB=[], lbCloseBB=null;
 let loginCloseBB=null, loginBtnBB=null, loginWxBB=null;
 let winShareBB=null, winLbBB=null, winNextBB=null, winReplayBB=null;
 let loseContinueBB=null, loseUndoBB=null, loseAdBB=null;
-let loseRestartConfirm=false, loseRestartTimer=null;
+let loseRestartConfirm=false, loseRestartTimer=null, propConfirmBB_yes=null, propConfirmBB_no=null;
 // ── 激励视频广告 ──
 let videoAd=null, adReady=false, AD_UNIT_ID=''; // 填入你的广告单元ID
 function initAd(){
@@ -1370,7 +1410,7 @@ function drawUI(){
     const hl=ctx.createLinearGradient(0,by,0,by+btnH*0.5);
     hl.addColorStop(0,'rgba(255,255,255,0.25)');hl.addColorStop(1,'transparent');
     ctx.fillStyle=hl;ctx.beginPath();ctx.roundRect(bx+1,by+1,eachW-2,btnH*0.45,11);ctx.fill();_r();
-    _s();ctx.font='bold 12px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
+    _s();ctx.font='bold 12px sans-serif';ctx.fillStyle='#ffffff';ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.fillText(lb.id==='checkin'&&ckClaimed?'已签':lb.t,bx+eachW/2,by+btnH/2);_r();
     topButtons.push({id:lb.id,x:bx,y:by,w:eachW,h:btnH});
     if(lb.id==='checkin') ckButton={id:'checkin',x:bx,y:by,w:eachW,h:btnH};
@@ -1429,7 +1469,7 @@ function drawUI(){
   if(toastMsg){
     const tw=ctx.measureText(toastMsg).width+30;
     ctx.fillStyle='rgba(0,0,0,0.7)';ctx.beginPath();ctx.roundRect(W/2-tw/2,H/2-18,tw,36,18);ctx.fill();
-    ctx.font='14px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(toastMsg,W/2,H/2);
+    ctx.font='14px sans-serif';ctx.fillStyle='#ffffff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(toastMsg,W/2,H/2);
   }
   // 暂停遮罩 + 面板
   if(paused){
@@ -1446,7 +1486,7 @@ function drawUI(){
     const bg=ctx.createLinearGradient(0,bY,0,bY+bH);
     bg.addColorStop(0,'#3b82f6');bg.addColorStop(1,'#2563eb');
     ctx.fillStyle=bg;ctx.beginPath();ctx.roundRect(bX,bY,bW,bH,bH/2);ctx.fill();
-    ctx.font='bold 15px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.font='bold 15px sans-serif';ctx.fillStyle='#ffffff';ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.fillText('▶ 继续游戏',W/2, bY+bH/2);
     ctx.textBaseline='alphabetic';
     pauseBtnBB={x:bX,y:bY,w:bW,h:bH};
@@ -1480,14 +1520,14 @@ function drawOverlays(){
     ctx.fillText(label, sx+ew+gap+lw/2, y+h/2);
     _r();
   };
-  const _btnPrimary=(x,y,w,h,emoji,label)=>_drawBtn(x,y,w,h,emoji,label,'#fff','#fff',
+  const _btnPrimary=(x,y,w,h,emoji,label)=>_drawBtn(x,y,w,h,emoji,label,'#ffffff','#ffffff',
     (()=>{const g=ctx.createLinearGradient(0,y,0,y+h);g.addColorStop(0,'#6366f1');g.addColorStop(1,'#06b6d4');return g;})()
   );
   const _btnSecondary=(x,y,w,h,emoji,label,clr)=>{
     clr=clr||'#94a3b8';_drawBtn(x,y,w,h,emoji,label,clr,clr,'rgba(255,255,255,0.06)');
   };
   const _btnWarn=(x,y,w,h,emoji,label)=>_drawBtn(x,y,w,h,emoji,label,'#f87171','#f87171','rgba(239,68,68,0.25)');
-  const _btnGold=(x,y,w,h,emoji,label)=>_drawBtn(x,y,w,h,emoji,label,'#fff','#fff',
+  const _btnGold=(x,y,w,h,emoji,label)=>_drawBtn(x,y,w,h,emoji,label,'#ffffff','#ffffff',
     (()=>{const g=ctx.createLinearGradient(0,y,0,y+h);g.addColorStop(0,'#f59e0b');g.addColorStop(1,'#d97706');return g;})()
   );
   // ── 通用面板背景 ──
@@ -1575,6 +1615,33 @@ function drawOverlays(){
       _btnSecondary(bx,btnY,bw,36,'🔄','重新挑战');
     }
     loseContinueBB={x:bx,y:btnY,w:bw,h:36};
+    return;
+  }
+  // 🔔 道具确认弹窗（撤销/炸弹/闪电/洗牌）
+  if(showPropConfirm){
+    const PROP_CONFIRM_INFO={undo:{icon:'↩',name:'撤回',desc:'撤回上一步操作'},bomb:{icon:'💣',name:'炸弹',desc:'移除收集槽最后1个螺丝'},lightning:{icon:'⚡',name:'闪电',desc:'消除槽内最多颜色×2'},shuffle:{icon:'🔀',name:'洗牌',desc:'随机重排棋盘所有颜色'}};
+    const info=PROP_CONFIRM_INFO[propConfirmType]||{name:propConfirmType,desc:''};
+    const pw=260,ph=170,px=(W-pw)/2,py=(H-ph)/2;
+    _drawPanel(px,py,pw,ph,16);
+    _s();ctx.textAlign='center';ctx.textBaseline='alphabetic';
+    ctx.font='28px sans-serif';ctx.fillText(info.icon,W/2,py+36);
+    ctx.font='bold 16px sans-serif';ctx.fillStyle='#fbbf24';ctx.fillText('确认使用「'+info.name+'」？',W/2,py+66);
+    ctx.font='12px sans-serif';ctx.fillStyle='#94a3b8';ctx.fillText(info.desc,W/2,py+86);
+    _r();
+    // 确定按钮
+    const btnW=100,btnH=38,btnYesX=W/2-btnW-8,btnNoX=W/2+8,btnY=py+108;
+    const yesG=ctx.createLinearGradient(0,btnY,0,btnY+btnH);
+    yesG.addColorStop(0,'#f59e0b');yesG.addColorStop(1,'#d97706');
+    ctx.fillStyle=yesG;ctx.beginPath();ctx.roundRect(btnYesX,btnY,btnW,btnH,19);ctx.fill();
+    _s();ctx.font='bold 14px sans-serif';ctx.fillStyle='#ffffff';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('✓ 确定',btnYesX+btnW/2,btnY+btnH/2);_r();
+    propConfirmBB_yes={x:btnYesX,y:btnY,w:btnW,h:btnH};
+    // 取消按钮
+    ctx.fillStyle='rgba(255,255,255,0.08)';ctx.beginPath();ctx.roundRect(btnNoX,btnY,btnW,btnH,19);ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(btnNoX,btnY,btnW,btnH,19);ctx.stroke();
+    _s();ctx.font='13px sans-serif';ctx.fillStyle='#94a3b8';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('取消',btnNoX+btnW/2,btnY+btnH/2);_r();
+    propConfirmBB_no={x:btnNoX,y:btnY,w:btnW,h:btnH};
     return;
   }
   // 皮肤选择器
@@ -1667,7 +1734,7 @@ function drawOverlays(){
       ctx.shadowColor='rgba(245,158,11,0.4)';ctx.shadowBlur=12;ctx.shadowOffsetY=0;
       ctx.fillStyle=sgb;ctx.beginPath();ctx.roundRect(signBtnX,signBtnY,signBtnW,signBtnH,signBtnH/2);ctx.fill();
       ctx.shadowColor='transparent';ctx.shadowBlur=0;
-      _s();ctx.font='bold 16px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🎁 签到领奖',signBtnX+signBtnW/2,signBtnY+signBtnH/2);_r();
+      _s();ctx.font='bold 16px sans-serif';ctx.fillStyle='#ffffff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🎁 签到领奖',signBtnX+signBtnW/2,signBtnY+signBtnH/2);_r();
     }else{
       ctx.fillStyle='rgba(99,102,241,0.3)';ctx.beginPath();ctx.roundRect(signBtnX,signBtnY,signBtnW,signBtnH,17);ctx.fill();
       _s();ctx.font='13px sans-serif';ctx.fillStyle='#818cf8';ctx.fillText('今日已签到',signBtnX+signBtnW/2,signBtnY+signBtnH/2+1);_r();
@@ -1818,7 +1885,7 @@ function drawOverlays(){
     const sbtnG=ctx.createLinearGradient(0,sbtnY,0,sbtnY+sbtnH);
     sbtnG.addColorStop(0,'#22c55e');sbtnG.addColorStop(1,'#16a34a');
     ctx.fillStyle=sbtnG;ctx.beginPath();ctx.roundRect(sbtnX,sbtnY,sbtnW,sbtnH,18);ctx.fill();
-    _s();ctx.font='bold 15px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
+    _s();ctx.font='bold 15px sans-serif';ctx.fillStyle='#ffffff';ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.fillText('📤 分享给微信好友',W/2,sbtnY+sbtnH/2);_r();
     shareBtnBB={x:sbtnX,y:sbtnY,w:sbtnW,h:sbtnH};
     shareCloseBB=_drawClose(sx+sw-32,sy);
@@ -1826,7 +1893,7 @@ function drawOverlays(){
   }
   // 排行榜
   if(showLB){
-    const lw=300,lh=370,lx=(W-lw)/2,ly=(H-lh)/2;
+    const lw=300,lh=Math.min(H-40,420),lx=(W-lw)/2,ly=(H-lh)/2;
     _drawPanel(lx,ly,lw,lh,18);
     _s();ctx.font='bold 18px sans-serif';ctx.fillStyle='#fbbf24';ctx.textAlign='center';ctx.fillText('🏆 排行榜',W/2,ly+28);_r();
     // tabs
@@ -1837,21 +1904,63 @@ function drawOverlays(){
       ctx.fillText(p==='all'?'总榜':'今日',tx+tw/2,ty+th/2);_r();
     });
     lbTabBB=[{period:'all',x:lx+60,y:ly+36,w:80,h:24},{period:'today',x:lx+150,y:ly+36,w:80,h:24}];
-    // list
-    const filtered=lbPeriod==='today'?lbData.filter(e=>e.date===getToday()):lbData;
-    const top=filtered.slice(0,10);
-    if(top.length===0){
+    // 🔍 当前用户识别
+    var myNick=nickname||''; // 仅登录用户匹配，游客不显示排名
+    // 🔍 找当前用户排名
+    var myRank=-1,myScore=score,myLevel=level,myRow=null;
+    for(var ri=0;ri<lbData.length;ri++){if(lbData[ri].nick===myNick){myRank=ri;myRow=lbData[ri];break}}
+    // ── 首行：用户排名状态 ──
+    const srx=lx+12,sry=ly+68,srw=lw-24,srh=28;
+    if(myRank>=0){
+      ctx.fillStyle='rgba(251,191,36,0.12)';ctx.beginPath();ctx.roundRect(srx,sry,srw,srh,10);ctx.fill();
+      ctx.strokeStyle='rgba(251,191,36,0.4)';ctx.lineWidth=1.5;ctx.beginPath();ctx.roundRect(srx,sry,srw,srh,10);ctx.stroke();
+      _s();ctx.font='bold 12px sans-serif';
+      ctx.fillStyle='#fbbf24';ctx.textAlign='left';ctx.textBaseline='middle';
+      ctx.fillText('👤 第'+(myRank+1)+'名',srx+10,sry+srh/2);
+      ctx.fillStyle='#94a3b8';ctx.font='11px sans-serif';ctx.textAlign='right';
+      ctx.fillText(myRow.level+'关  '+myRow.score+'分',srx+srw-10,sry+srh/2);_r();
+    }else{
+      ctx.fillStyle='rgba(100,116,139,0.12)';ctx.beginPath();ctx.roundRect(srx,sry,srw,srh,10);ctx.fill();
+      _s();ctx.font='12px sans-serif';ctx.fillStyle='#64748b';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('当前分数: '+myScore+' (第'+myLevel+'关) — 通关后上榜',srx+srw/2,sry+srh/2);_r();
+    }
+    // ── 列表区域（可滚动）──
+    const listY=ly+104, listH=lh-120, rowH=26, maxVisible=Math.floor(listH/rowH);
+    const totalRows=lbData.length, maxScroll=Math.max(0,(totalRows-maxVisible)*rowH);
+    lbScroll=Math.max(0,Math.min(lbScroll,maxScroll));
+    if(totalRows===0){
       _s();ctx.font='14px sans-serif';ctx.fillStyle='#64748b';ctx.textAlign='center';ctx.fillText('暂无数据',W/2,ly+180);_r();
     }else{
-      top.forEach((r,i)=>{
-        const rx=lx+16,ry=ly+72+i*26,rw=lw-32,rh=22;
-        ctx.fillStyle=i%2===0?'rgba(255,255,255,0.03)':'rgba(255,255,255,0.01)';ctx.beginPath();ctx.roundRect(rx,ry,rw,rh,10);ctx.fill();
-        _s();ctx.font='bold 13px sans-serif';ctx.fillStyle=i===0?'#fbbf24':i===1?'#94a3b8':i===2?'#d97706':'#64748b';
+      _s();ctx.beginPath();ctx.roundRect(lx+8,listY,lw-16,listH,10);ctx.clip();
+      const startIdx=Math.floor(lbScroll/rowH), offsetY=lbScroll%rowH;
+      for(var i=startIdx;i<Math.min(totalRows,startIdx+maxVisible+2);i++){
+        var r=lbData[i];
+        const rx=lx+8,ry=listY-1+(i-startIdx)*rowH-offsetY,rw=lw-16,rh=rowH-1;
+        const isMe=r.nick===myNick;
+        // 行背景
+        if(isMe){
+          ctx.fillStyle='rgba(251,191,36,0.08)';ctx.beginPath();ctx.roundRect(rx,ry,rw,rh,8);ctx.fill();
+          ctx.strokeStyle='rgba(251,191,36,0.5)';ctx.lineWidth=1.5;ctx.beginPath();ctx.roundRect(rx,ry,rw,rh,8);ctx.stroke();
+        }else{
+          ctx.fillStyle=i%2===0?'rgba(255,255,255,0.03)':'rgba(255,255,255,0.01)';ctx.beginPath();ctx.roundRect(rx,ry,rw,rh,8);ctx.fill();
+        }
+        // 排名
+        ctx.font='bold 12px sans-serif';
+        ctx.fillStyle=i===0?'#fbbf24':i===1?'#94a3b8':i===2?'#d97706':isMe?'#fbbf24':'#64748b';
         ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText((i+1)+'.',rx+6,ry+rh/2);
-        ctx.fillStyle='#e2e8f0';ctx.fillText(r.nick.slice(0,6),rx+30,ry+rh/2);
+        // 昵称
+        ctx.fillStyle=isMe?'#fbbf24':'#e2e8f0';ctx.fillText(r.nick.slice(0,8),rx+30,ry+rh/2);
+        // 关卡
         ctx.font='10px sans-serif';ctx.fillStyle='#94a3b8';ctx.textAlign='right';ctx.fillText('第'+r.level+'关',rx+rw-60,ry+rh/2);
-        ctx.font='bold 13px sans-serif';ctx.fillStyle='#fbbf24';ctx.fillText(r.score,rx+rw-8,ry+rh/2);_r();
-      });
+        // 分数
+        ctx.font='bold 12px sans-serif';ctx.fillStyle=isMe?'#fbbf24':'#fbbf24';ctx.fillText(r.score,rx+rw-6,ry+rh/2);
+      }
+      _r();
+      // 滚动指示器
+      if(maxScroll>0){
+        const sbW=3,sbH=Math.max(20,listH*(listH/(totalRows*rowH))),sbX=lx+lw-8,sbY=listY+(lbScroll/maxScroll)*(listH-sbH);
+        ctx.fillStyle='rgba(255,255,255,0.12)';ctx.beginPath();ctx.roundRect(sbX,sbY,sbW,sbH,2);ctx.fill();
+      }
     }
     lbCloseBB=_drawClose(lx+lw-32,ly);
     return;
@@ -1939,7 +2048,7 @@ function drawOverlays(){
       _s();ctx.font='11px sans-serif';ctx.textBaseline='middle';ctx.textAlign='left';
       ctx.fillStyle=privacyCheckOn?blue:'rgba(255,255,255,0.12)';
       ctx.beginPath();ctx.roundRect(cbX,chY,chSize,chSize,3);ctx.fill();
-      if(privacyCheckOn){ctx.font='12px sans-serif';ctx.fillStyle='#fff';ctx.fillText('✓',cbX+2.5,cbCY+1);ctx.font='11px sans-serif'}
+      if(privacyCheckOn){ctx.font='12px sans-serif';ctx.fillStyle='#ffffff';ctx.fillText('✓',cbX+2.5,cbCY+1);ctx.font='11px sans-serif'}
       ctx.fillStyle=gray;ctx.fillText('我已阅读并同意上述全部协议',cbX+chSize+8,cbCY);_r();
       privacyCB={x:cbX,y:chY,w:chSize+ctx.measureText('我已阅读并同意上述全部协议').width+8,h:chSize};
       // ── 勾选后直接出现登录按钮 ──
@@ -1989,7 +2098,7 @@ function drawOverlays(){
       // 🔧 Canvas 备用登录按钮（开发者工具不支持 createUserInfoButton 时兜底）
       var loginCanvasW=140,loginCanvasH=42,loginCanvasX=W/2-loginCanvasW/2;
       ctx.fillStyle='#07c160';ctx.beginPath();ctx.roundRect(loginCanvasX,targetY,loginCanvasW,loginCanvasH,21);ctx.fill();
-      _s();ctx.font='bold 15px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
+      _s();ctx.font='bold 15px sans-serif';ctx.fillStyle='#ffffff';ctx.textAlign='center';ctx.textBaseline='middle';
       ctx.fillText('微信一键登录',loginCanvasX+loginCanvasW/2,targetY+loginCanvasH/2);_r();
       _loginCanvasBB={x:loginCanvasX,y:targetY,w:loginCanvasW,h:loginCanvasH};
     }
@@ -2062,7 +2171,7 @@ function drawComboPops(){
       const bs=c.size*0.42;
       ctx.font='bold '+bs+'px sans-serif';
       const bGrad=ctx.createLinearGradient(0,-bs*0.5,0,bs*0.5);
-      bGrad.addColorStop(0,'#fff');
+      bGrad.addColorStop(0,'#ffffff');
       bGrad.addColorStop(1,'#fbbf24');
       ctx.fillStyle=bGrad;
       ctx.shadowColor='rgba(0,0,0,0.4)';ctx.shadowBlur=bs*0.3;
@@ -2107,7 +2216,7 @@ function render(){
   if(err){ctx.fillStyle='#ef4444';ctx.fillRect(0,0,W,40);ctx.fillStyle='white';ctx.font='11px sans-serif';ctx.textAlign='left';ctx.fillText(err,10,25)}
 }
 // ── 触控 ──
-let _lastTap=0, _loginDebounce=0;
+let _lastTap=0, _loginDebounce=0, _prevTouchTime=0;
 function handleTouch(tx,ty){
   // 🔧 特效菜单打开时拦截所有点击，不穿透到螺丝
   if(efxMenuOpen){
@@ -2118,6 +2227,12 @@ function handleTouch(tx,ty){
       }
     }
     efxMenuOpen=false;return;
+  }
+  // 🔔 道具确认弹窗
+  if(showPropConfirm){
+    if(propConfirmBB_yes&&tx>=propConfirmBB_yes.x&&tx<=propConfirmBB_yes.x+propConfirmBB_yes.w&&ty>=propConfirmBB_yes.y&&ty<=propConfirmBB_yes.y+propConfirmBB_yes.h){confirmProp();return}
+    if(propConfirmBB_no&&tx>=propConfirmBB_no.x&&tx<=propConfirmBB_no.x+propConfirmBB_no.w&&ty>=propConfirmBB_no.y&&ty<=propConfirmBB_no.y+propConfirmBB_no.h){showPropConfirm=false;return}
+    showPropConfirm=false;return; // 点其他区域=取消
   }
   // ── 商店弹窗 ──
   if(showShopOverlay){
@@ -2154,7 +2269,7 @@ function handleTouch(tx,ty){
   // ── 排行榜 ──
   if(showLB){
     if(lbCloseBB&&tx>=lbCloseBB.x&&tx<=lbCloseBB.x+lbCloseBB.w&&ty>=lbCloseBB.y&&ty<=lbCloseBB.y+lbCloseBB.h){showLB=false;if(_fromWinOverlay){_fromWinOverlay=false;showWinOverlay=true}return}
-    for(const b of lbTabBB){if(tx>=b.x&&tx<=b.x+b.w&&ty>=b.y&&ty<=b.y+b.h){lbPeriod=b.period;showLB=true;return}}
+    for(const b of lbTabBB){if(tx>=b.x&&tx<=b.x+b.w&&ty>=b.y&&ty<=b.y+b.h){lbPeriod=b.period;lbScroll=0;loadLB();return}}
     return;
   }
   // 隐私协议全文
@@ -2204,7 +2319,7 @@ function handleTouch(tx,ty){
     showCheckin=false;return;
   }
   if(showWinOverlay){
-    if(winNextBB&&tx>=winNextBB.x&&tx<=winNextBB.x+winNextBB.w&&ty>=winNextBB.y&&ty<=winNextBB.y+winNextBB.h){level=Math.min(level+1,500);saveGame();showWinOverlay=false;generateLevel();return}
+    if(winNextBB&&tx>=winNextBB.x&&tx<=winNextBB.x+winNextBB.w&&ty>=winNextBB.y&&ty<=winNextBB.y+winNextBB.h){level=Math.min(level+1,500);showWinOverlay=false;generateLevel();return}
     if(winReplayBB&&tx>=winReplayBB.x&&tx<=winReplayBB.x+winReplayBB.w&&ty>=winReplayBB.y&&ty<=winReplayBB.y+winReplayBB.h){showWinOverlay=false;restartLevel();return}
     if(winShareBB&&tx>=winShareBB.x&&tx<=winShareBB.x+winShareBB.w&&ty>=winShareBB.y&&ty<=winShareBB.y+winShareBB.h){showWinOverlay=false;generateShareCard();return}
     if(winLbBB&&tx>=winLbBB.x&&tx<=winLbBB.x+winLbBB.w&&ty>=winLbBB.y&&ty<=winLbBB.y+winLbBB.h){showWinOverlay=false;_fromWinOverlay=true;loadLB();showLB=true;return}
@@ -2242,7 +2357,7 @@ function handleTouch(tx,ty){
     if(tb.id==='shop'){showShopOverlay=!showShopOverlay;shopBuyBB=[];return}
     if(tb.id==='efxToggle'){efxMenuOpen=!efxMenuOpen;return}
     if(tb.id==='daily'){if(isDailyDone()){showToast('今日已挑战');return}if(isDailyLevel){cancelDailyChallenge();return}startDailyChallenge();return}
-    if(tb.id==='leaderboard'){loadLB();showLB=!showLB;return}
+    if(tb.id==='leaderboard'){lbScroll=0;loadLB();showLB=!showLB;return}
     if(tb.id==='user'){const n=Date.now();if(n-_loginDebounce<400){return};_loginDebounce=n;showLoginOverlay=!showLoginOverlay;if(showLoginOverlay){showLvlPicker=false;showSkinPicker=false;showThemePicker=false;showCheckin=false;showShopOverlay=false;showSfxPicker=false;showTutorialOverlay=false;showShareOverlay=false;showLB=false;showPrivacyText='';privacyAgreed=false;privacyCheckOn=false;loginInProgress=false;_nativeBtnCreated=false;hideWxLoginBtn()}return}
   }}
   if(paused&&pauseBtnBB&&tx>=pauseBtnBB.x&&tx<=pauseBtnBB.x+pauseBtnBB.w&&ty>=pauseBtnBB.y&&ty<=pauseBtnBB.y+pauseBtnBB.h){paused=false;return}
@@ -2254,16 +2369,24 @@ function handleTouch(tx,ty){
 // ── 触控：选关列表独立处理 ──
 function _inLvlList(tx,ty){return lvlListRect&&tx>=lvlListRect.x&&tx<=lvlListRect.x+lvlListRect.w&&ty>=lvlListRect.y&&ty<=lvlListRect.y+lvlListRect.h}
 wx.onTouchStart(e=>{
-  e.preventDefault&&e.preventDefault();
-  _lastTap=Date.now();
+  try{e.preventDefault()}catch(_){}
+  try{e.stopPropagation()}catch(_){}
+  if(e.touches&&e.touches.length>1){try{e.preventDefault()}catch(_){}return;}
+  const now=Date.now();
+  if(now-_prevTouchTime<500){_prevTouchTime=now;try{e.preventDefault()}catch(_){}return;}
+  _prevTouchTime=now;
+  _lastTap=now;
   if(showLvlPicker&&_inLvlList(e.touches[0].clientX,e.touches[0].clientY)){
     lvlPickerTouchOk=true; lvlPickerStartY=e.touches[0].clientY; lvlPickerMoved=0;
     return;
   }
   lvlPickerTouchOk=false;
+  // 排行榜滚动
+  if(showLB){lbScrollStartY=e.touches[0].clientY;lbScrollDragging=true;lbScrollMoved=0;return;}
 });
 wx.onTouchMove(e=>{
-  e.preventDefault&&e.preventDefault();
+  try{e.preventDefault()}catch(_){}try{e.stopPropagation()}catch(_){}
+  if(e.touches&&e.touches.length>1){try{e.preventDefault()}catch(_){}return;}
   if(showLvlPicker&&lvlPickerTouchOk){
     const t=e.touches[0]; if(!t)return;
     const dy=t.clientY-(lastTouchY||t.clientY);
@@ -2271,8 +2394,18 @@ wx.onTouchMove(e=>{
     lastTouchY=t.clientY;
     return;
   }
+  if(showLB&&lbScrollDragging){
+    const t=e.touches[0];if(!t)return;
+    const dy=t.clientY-lbScrollStartY;
+    lbScrollMoved+=Math.abs(lbScrollStartY-t.clientY);
+    lbScrollStartY=t.clientY;
+    if(lbScrollMoved>2){lbScroll+=dy}
+    return;
+  }
 });
 wx.onTouchEnd(e=>{
+  try{e.preventDefault()}catch(_){}
+  if(e.touches&&e.touches.length>1){return;}
   lastTouchY=null;
   if(showLvlPicker&&lvlPickerTouchOk){
     if(lvlPickerMoved<8){
@@ -2287,12 +2420,18 @@ wx.onTouchEnd(e=>{
     lvlPickerTouchOk=false;
     return;
   }
+  if(showLB&&lbScrollDragging){lbScrollDragging=false;if(lbScrollMoved<5){handleTouch(e.changedTouches[0].clientX,e.changedTouches[0].clientY)}return;}
   handleTouch(e.changedTouches[0].clientX,e.changedTouches[0].clientY);
 });
 let lastTouchY=null;
-try{canvas.addEventListener('touchstart',e=>{e.preventDefault()})}catch(e){}
-try{canvas.addEventListener('touchmove',e=>{e.preventDefault()})}catch(e){}
-try{canvas.addEventListener('click',e=>{if(Date.now()-_lastTap<100)return;handleTouch(e.clientX,e.clientY)})}catch(e){}
+// ── 触控防护：防双指/双击缩放 ──
+// canvas 属性直接设置
+try{canvas.style.touchAction='none';canvas.style.webkitUserSelect='none';canvas.style.msTouchAction='none'}catch(e){}
+// 额外全局拦截
+try{wx.onTouchCancel(e=>{try{e.preventDefault()}catch(_){}try{e.stopPropagation()}catch(_){}})}catch(e){}
+// 重复注册确保拦截（多重保险）
+try{wx.onTouchStart(function(e){if(e.touches&&e.touches.length>1){try{e.preventDefault()}catch(_){}}})}catch(e){}
+try{wx.onTouchMove(function(e){if(e.touches&&e.touches.length>1){try{e.preventDefault()}catch(_){}}})}catch(e){}
 // ── 音效 ──
 let audioCtx=null,soundOn=true,clickSfxIdx=0;
 try{audioCtx=wx.createWebAudioContext()}catch(e){}
@@ -2330,10 +2469,9 @@ function loop(){
 }
 // ── Math.imul polyfill（极少数旧引擎缺失）──
 if(!Math.imul)Math.imul=function(a,b){var ah=(a>>>16)&0xffff,al=a&0xffff,bh=(b>>>16)&0xffff,bl=b&0xffff;return((al*bl)+(((ah*bl+al*bh)<<16)>>>0)|0)};
-// 🔒 禁止页面缩放/滚动
-try{wx.setPageStyle({style:{overflow:'hidden'}})}catch(e){}
-try{canvas.addEventListener('touchstart',e=>{e.preventDefault()})}catch(e){}
-try{canvas.addEventListener('touchmove',e=>{e.preventDefault()})}catch(e){}
+// 🔒 禁止页面缩放（所有可能方式）
+try{wx.setPageStyle({style:{overflow:'hidden',touchAction:'manipulation'}})}catch(e){}
+try{var meta=document.createElement('meta');meta.name='viewport';meta.content='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no';document.head.appendChild(meta)}catch(e){} // 兜底
 // ── 启动 ──
 (function init(){
 try{loadNick()}catch(e){console.warn('[unscrew] loadNick failed:',e.message)}
@@ -2346,7 +2484,7 @@ try{soundOn=wx.getStorageSync('sound')!=='0'}catch(e){}
 try{clickSfxIdx=parseInt(wx.getStorageSync('sfx_idx'))||0}catch(e){}
 try{bgmOn=wx.getStorageSync('bgm')==='1'}catch(e){}
 try{initAd()}catch(e){console.warn('[unscrew] initAd failed:',e.message)}
-try{generateLevel()}catch(e){console.error('[unscrew] generateLevel failed:',e.message);ctx.fillStyle='#ef4444';ctx.fillRect(0,0,W,60);ctx.fillStyle='#fff';ctx.font='13px sans-serif';ctx.fillText('关卡生成失败: '+e.message,10,25);ctx.fillText('请检查数据后重试',10,45);return}
+try{generateLevel()}catch(e){console.error('[unscrew] generateLevel failed:',e.message);ctx.fillStyle='#ef4444';ctx.fillRect(0,0,W,60);ctx.fillStyle='#ffffff';ctx.font='13px sans-serif';ctx.fillText('关卡生成失败: '+e.message,10,25);ctx.fillText('请检查数据后重试',10,45);return}
 // 注册隐私授权：勾选我们的协议 → resolve → 微信放行
 try{wx.onNeedPrivacyAuthorization(function(resolve){_privacyResolve=resolve;showLoginOverlay=true})}catch(e){}
 requestAnimationFrame(loop);
