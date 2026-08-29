@@ -27,6 +27,10 @@ function getKV(list, key){
   return '';
 }
 
+// 判断是否开发者工具（开放数据域好友关系数据在工具里不返回）
+let _isDevtools = false;
+try{ _isDevtools = (wx.getSystemInfoSync().platform === 'devtools'); }catch(e){}
+
 function render(list){
   const W = sharedCanvas.width, H = sharedCanvas.height;
   ctx.clearRect(0,0,W,H);
@@ -43,10 +47,17 @@ function render(list){
   if(!list || list.length===0){
     ctx.fillStyle = '#64748b';
     ctx.font = '13px sans-serif';
-    ctx.fillText('暂无好友数据', W/2, H/2-10);
-    ctx.font = '11px sans-serif';
-    ctx.fillStyle = '#94a3b8';
-    ctx.fillText('通关后你的成绩会显示在这里', W/2, H/2+14);
+    if(_isDevtools){
+      ctx.fillText('好友榜需真机体验版查看', W/2, H/2-10);
+      ctx.font = '11px sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('开发者工具不返回好友关系数据', W/2, H/2+14);
+    }else{
+      ctx.fillText('暂无好友数据', W/2, H/2-10);
+      ctx.font = '11px sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('通关后你的成绩会显示在这里', W/2, H/2+14);
+    }
     return;
   }
   list.slice(0, 8).forEach((item, i)=>{
